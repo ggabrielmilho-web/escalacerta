@@ -37,8 +37,22 @@
       K: cfg.maxSeguidos, S: cfg.domingoCada,
       ini: M.diaDe(cfg.inicio), fim: M.diaDe(cfg.fim),
       dataLonga: n => { const s = M.isoDe(n); return `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`; },
+      // quantos dias de `a` a `b` a pessoa `e` tem com ok(valor, dia da semana); fora da grade não conta
+      conta: (e, a, b, ok) => {
+        let n = 0;
+        for (let dia = a; dia <= b; dia++) {
+          const v = grade[e][dia - seg0];
+          if (v !== undefined && v !== null && ok(v, M.diaSemana(dia))) n++;
+        }
+        return n;
+      },
     };
   }
+
+  // Toda fórmula vai com o resultado já calculado: a Exibição Protegida do Excel, a prévia do WhatsApp,
+  // o Excel do celular e o Google Drive mostram o valor gravado e não calculam (sem isso, abrem em branco).
+  const f = (formula, result) => ({ formula, result });
+  const ehFolga = v => v === 'F' || v === 'X';
 
   function titulo(ws, txt, sub) {
     ws.getCell(1, 1).value = txt;
@@ -100,7 +114,7 @@
         }
       });
       const col = `${letra(C1)}${r}:${letra(CN)}${r}`;
-      ws.getCell(r, C_TRAB).value = cfg.aberto[d] ? { formula: `COUNTIF(${col},"Trabalha")` } : '—';
+      ws.getCell(r, C_TRAB).value = cfg.aberto[d] ? f(`COUNTIF(${col},"Trabalha")`, x.grade.filter(l => l[k] === 'T').length) : '—';
       ws.getCell(r, C_MIN).value = cfg.aberto[d] ? cfg.minimo[d] : '—';
       if (nomeFeriado[dia]) {
         ws.getCell(r, C_OBS).value = `Feriado: ${nomeFeriado[dia]} (se abrir, pagar em dobro ou dar folga)`;
@@ -150,7 +164,7 @@
     const semanasLista = [];
     for (let seg = x.seg0; seg <= fim; seg += 7) {
       const a = Math.max(seg, ini), b = Math.min(seg + 6, fim);
-      semanasLista.push({ seg, a: linhaDoDia[a], b: linhaDoDia[b], inteira: seg >= ini && seg + 6 <= fim });
+      semanasLista.push({ seg, a: linhaDoDia[a], b: linhaDoDia[b], da: a, db: b, inteira: seg >= ini && seg + 6 <= fim });
     }
     const dias = `'Calendário'!$B$${P1}:$B$${ult}`;
     // as abas que leem o calendário vêm depois da escala fixa: quem chama decide a ordem.
@@ -161,11 +175,11 @@
       abaResumo(wb, x, e => {
         const faixa = ref(e, P1, ult);
         return [
-          { formula: `'Calendário'!${letra(C1 + e)}${L0}` },
-          { formula: `COUNTIF(${faixa},"Folga")` },
-          { formula: `COUNTIFS(${dias},"Domingo",${faixa},"Folga")+COUNTIFS(${dias},"Domingo",${faixa},"Fechado")` },
-          { formula: `COUNTIFS(${dias},"Domingo",${faixa},"Trabalha")` },
-          { formula: `COUNTIFS(${dias},"Sábado",${faixa},"Trabalha")` },
+          f(`'Calendário'!${letra(C1 + e)}${L0}`, cfg.nomes[e]),
+          f(`COUNTIF(${faixa},"Folga")`, x.conta(e, ini, fim, v => v === 'F')),
+          f(`COUNTIFS(${dias},"Domingo",${faixa},"Folga")+COUNTIFS(${dias},"Domingo",${faixa},"Fechado")`, x.conta(e, ini, fim, (v, d) => d === 6 && ehFolga(v))),
+          f(`COUNTIFS(${dias},"Domingo",${faixa},"Trabalha")`, x.conta(e, ini, fim, (v, d) => d === 6 && v === 'T')),
+          f(`COUNTIFS(${dias},"Sábado",${faixa},"Trabalha")`, x.conta(e, ini, fim, (v, d) => d === 5 && v === 'T')),
         ];
       });
     } };
@@ -254,7 +268,7 @@
       const c = C0 + k, col = letra(c), dia = seg0 + k, d = k % 7;
       const dentro = dia >= ini && dia <= fim && cfg.aberto[d];
       const t = ws.getCell(L_TRAB, c), m = ws.getCell(L_MIN, c);
-      t.value = dentro ? { formula: `COUNTIF(${col}${L1}:${col}${LN},"T")` } : '—';
+      t.value = dentro ? f(`COUNTIF(${col}${L1}:${col}${LN},"T")`, grade.filter(l => l[k] === 'T').length) : '—';
       m.value = dentro ? cfg.minimo[d] : '—';
       [t, m].forEach(cel => {
         cel.alignment = { horizontal: 'center' };
@@ -286,7 +300,7 @@
     const semanasLista = [];
     for (let w = 0; w < semanas; w++) {
       const seg = seg0 + w * 7;
-      semanasLista.push({ seg, a: C0 + w * 7, b: C0 + w * 7 + 6, inteira: seg >= ini && seg + 6 <= fim });
+      semanasLista.push({ seg, a: C0 + w * 7, b: C0 + w * 7 + 6, da: seg, db: seg + 6, inteira: seg >= ini && seg + 6 <= fim });
     }
     const dias = `'Calendário'!${letra(C0)}${L_DIA}:${letra(ultCol)}${L_DIA}`;
     return { fonte: (e, dia) => `'Calendário'!$${letra(C0 + dia - seg0)}$${L1 + e}`, depois: () => {
@@ -297,11 +311,11 @@
       abaResumo(wb, x, e => {
         const faixa = `'Calendário'!${letra(C0)}${L1 + e}:${letra(ultCol)}${L1 + e}`;
         return [
-          { formula: `'Calendário'!A${L1 + e}` },
-          { formula: `COUNTIF(${faixa},"F")` },
-          { formula: `SUMPRODUCT((${dias}="dom")*((${faixa}="F")+(${faixa}="X")))` },
-          { formula: `SUMPRODUCT((${dias}="dom")*(${faixa}="T"))` },
-          { formula: `SUMPRODUCT((${dias}="sáb")*(${faixa}="T"))` },
+          f(`'Calendário'!A${L1 + e}`, cfg.nomes[e]),
+          f(`COUNTIF(${faixa},"F")`, x.conta(e, seg0, seg0 + total - 1, v => v === 'F')),
+          f(`SUMPRODUCT((${dias}="dom")*((${faixa}="F")+(${faixa}="X")))`, x.conta(e, seg0, seg0 + total - 1, (v, d) => d === 6 && ehFolga(v))),
+          f(`SUMPRODUCT((${dias}="dom")*(${faixa}="T"))`, x.conta(e, seg0, seg0 + total - 1, (v, d) => d === 6 && v === 'T')),
+          f(`SUMPRODUCT((${dias}="sáb")*(${faixa}="T"))`, x.conta(e, seg0, seg0 + total - 1, (v, d) => d === 5 && v === 'T')),
         ];
       });
     } };
@@ -382,7 +396,8 @@
       nome.border = bordas;
       colunas.forEach(({ dia, c, d, fundo }) => {
         const src = fonte(e, dia), cel = ws.getCell(r, c);
-        cel.value = { formula: `IF(OR(${src}="Folga",${src}="F"),"F",IF(OR(${src}="Fechado",${src}="X"),"X",""))` };
+        const v = x.grade[e][dia - x.seg0];
+        cel.value = f(`IF(OR(${src}="Folga",${src}="F"),"F",IF(OR(${src}="Fechado",${src}="X"),"X",""))`, ehFolga(v) ? v : '');
         cel.alignment = { horizontal: 'center', vertical: 'middle' };
         cel.border = borda(d);
         cel.font = { name: FONTE, size: 10, bold: true, color: { argb: COR.tinta } };
@@ -390,8 +405,8 @@
       });
       const faixa = `${letra(C0)}${r}:${letra(CN)}${r}`;
       const fol = ws.getCell(r, C_FOL), dom = ws.getCell(r, C_DOM);
-      fol.value = { formula: `COUNTIF(${faixa},"F")` };
-      dom.value = { formula: `SUMPRODUCT((${dias}="dom")*((${faixa}="F")+(${faixa}="X")))` };
+      fol.value = f(`COUNTIF(${faixa},"F")`, x.conta(e, mes.a, mes.b, v => v === 'F'));
+      dom.value = f(`SUMPRODUCT((${dias}="dom")*((${faixa}="F")+(${faixa}="X")))`, x.conta(e, mes.a, mes.b, (v, d) => d === 6 && ehFolga(v)));
       [fol, dom].forEach(cel => {
         cel.alignment = { horizontal: 'center', vertical: 'middle' };
         cel.border = bordas;
@@ -407,10 +422,11 @@
     };
     rotulo(L_TRAB, 'Trabalhando');
     rotulo(L_MIN, 'Mínimo pedido');
-    colunas.forEach(({ c, d, fundo }) => {
+    colunas.forEach(({ dia, c, d, fundo }) => {
       const col = letra(c), aberto = cfg.aberto[d];
       const t = ws.getCell(L_TRAB, c), m = ws.getCell(L_MIN, c);
-      t.value = aberto ? { formula: `${N}-COUNTIF(${col}${L1}:${col}${LN},"F")-COUNTIF(${col}${L1}:${col}${LN},"X")` } : '—';
+      const folgam = x.grade.filter(l => ehFolga(l[dia - x.seg0])).length;
+      t.value = aberto ? f(`${N}-COUNTIF(${col}${L1}:${col}${LN},"F")-COUNTIF(${col}${L1}:${col}${LN},"X")`, N - folgam) : '—';
       m.value = aberto ? cfg.minimo[d] : '—';
       [t, m].forEach(cel => {
         cel.alignment = { horizontal: 'center' };
@@ -449,12 +465,12 @@
     for (let e = 0; e < x.N; e++) {
       const r = 4 + e;
       const nome = fs.getCell(r, 1);
-      nome.value = { formula: nomeRef(e) };
+      nome.value = f(nomeRef(e), x.cfg.nomes[e]);
       nome.font = { name: FONTE, size: 10 };
       nome.border = bordas;
       semanasLista.forEach((s, w) => {
         const cel = fs.getCell(r, 2 + w);
-        cel.value = { formula: formula(e, s) };
+        cel.value = f(formula(e, s), x.conta(e, s.da, s.db, ehFolga));
         cel.alignment = { horizontal: 'center' };
         cel.border = bordas;
         cel.font = { name: FONTE, size: 10, color: { argb: s.inteira ? COR.tinta : COR.cinza } };
@@ -541,6 +557,7 @@
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Escala Certa';
     wb.created = new Date();
+    wb.calcProperties.fullCalcOnLoad = true;      // com edição habilitada, o Excel refaz as contas ao abrir
     // o arquivo abre no calendário, que é a escala que as pessoas reconhecem e onde se troca folga;
     // logo depois, um quadro por mês (para imprimir e afixar), e então a escala fixa
     const cal = (formato || (x.N <= 12 ? 'dia' : 'pessoa')) === 'dia' ? abaPorDia(wb, M, x) : abaPorPessoa(wb, M, x);

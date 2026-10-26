@@ -13,7 +13,7 @@ Ferramenta web que responde **quantas pessoas uma empresa precisa com a escala 5
 |---|---|
 | Motor da escala (`gerador/motor.js`) | Pronto e testado (`testes/testa_motor.js`) |
 | Página (`gerador/index.html`) | Pronta: prévia grátis, área paga, conta, celular e modo escuro |
-| Planilha Excel (`gerador/exportar.js`) | Pronta, testada no Excel (abre sem erro de fórmula). Os **quadros por mês** (24/10) foram conferidos pelo ExcelJS e pelo openpyxl; **falta abrir num Excel de verdade** (o Office desta máquina está sem ativação) |
+| Planilha Excel (`gerador/exportar.js`) | Pronta e aberta no Excel. Toda fórmula vai **com o resultado gravado** (26/10): a Exibição Protegida, a prévia do WhatsApp, o Excel do celular e o Google Drive não calculam e mostravam os quadros em branco. Conferido: cada fórmula recalculada bate com o valor gravado |
 | Servidor (`servidor/`): contas, pagamento, escala salva | Pronto e testado **localmente**, com o Mercado Pago **de teste**. Banco no **Postgres** desde 26/10 (era SQLite) |
 | Marca (`marca/`) | Logo A em uso no site; B disponível |
 | Empacotamento (`Dockerfile`, `escala-stack.yml`) | Pronto; publicação em https://escalacerta.carvalhoia.com (seção 12) |
@@ -175,7 +175,7 @@ As datas viram dias inteiros em UTC, sem fuso. O período vai até 1 ano. A idei
 
 ## 7. A planilha Excel (`gerador/exportar.js`)
 
-Gerada no navegador com **ExcelJS 4.4.0** (CDN jsDelivr). Abre na aba **Calendário**.
+Gerada no navegador com **ExcelJS 4.4.0** (CDN jsDelivr). Abre na aba **Calendário**. Cada fórmula leva o resultado já calculado (`f(formula, result)` em `exportar.js`): quem abre sem calcular vê os números, e com a edição habilitada o Excel recalcula tudo ao abrir (`fullCalcOnLoad`). **Fórmula nova sem resultado abre em branco no celular.**
 
 | Aba | Conteúdo |
 |---|---|
