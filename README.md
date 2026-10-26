@@ -249,6 +249,23 @@ O "Esqueci minha senha" manda o código pelo **Resend**, com o domínio **carval
 
 ---
 
+## 10.1 Rastreio do tráfego (Google Analytics e Pixel da Meta)
+
+Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBXV19MN` e Pixel `4114167638802615` (IDs públicos, aparecem no código de qualquer página). **Nenhum dado pessoal sai do site**: nem e-mail nem os nomes da equipe.
+
+| Passo | GA4 | Pixel da Meta |
+|---|---|---|
+| Abriu a página | `page_view` | `PageView` |
+| Fez o cálculo (1 vez por visita) | `calculo_feito` (equipe, faltam) | `ViewContent` |
+| Clicou em "Liberar" | `clique_liberar` | `AddToCart` |
+| Criou a conta | `sign_up` | `CompleteRegistration` |
+| Foi para o Mercado Pago | `begin_checkout` | `InitiateCheckout` |
+| Pagamento confirmado na página | `purchase` (id do pedido, R$ 37) | `Purchase` (`eventID` = `compra-<pedido>`) |
+
+A compra é contada **uma vez por pedido** (marca no navegador). Ela só é contada quando a pessoa vê a confirmação na página; quem paga e nunca mais abre o site não conta. Para cobrir esse caso, o próximo passo é a **API de Conversões da Meta** no servidor, no aviso do Mercado Pago, com o mesmo `eventID` para a Meta não contar em dobro. Testado com os scripts reais e os envios interceptados (26/10). A Meta não envia eventos de navegador automatizado em localhost; a conferência real é no "Testar eventos" do Gerenciador de Eventos.
+
+---
+
 ## 11. Administração (`servidor/admin.py`)
 
 ```bash
@@ -341,5 +358,5 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 1. Deploy em `escalacerta.carvalhoia.com` (seção 12).
 2. Termos de uso e política de privacidade; seções de baixo da página (lei, perguntas frequentes, preço, rodapé com CNPJ de quem vende).
 3. Teste de compra real (Pix e cartão) e do e-mail de recuperação.
-4. Pixel/eventos para o tráfego pago: visita, cálculo feito, clique em liberar e compra.
+4. Pixel e GA4 no ar (seção 10.1); falta a API de Conversões da Meta no servidor e a política de privacidade que cite os dois.
 5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; turnos (manhã e tarde) e 12x36 na v2.

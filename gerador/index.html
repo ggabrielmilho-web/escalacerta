@@ -520,6 +520,47 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
   // pelo site há conta e pagamento; aberto direto do arquivo, o protótipo libera sem cobrar
   const SERVIDOR = /^https?:$/.test(location.protocol);
+
+  // ----- rastreio do tráfego: Google Analytics (GA4) e Pixel da Meta -----
+  // Só no site publicado (https). Nenhum dado pessoal sai daqui: nem e-mail nem os nomes da equipe.
+  const GA_ID = 'G-E0VBXV19MN', PIXEL_ID = '4114167638802615';
+  const RASTREIO = (location.protocol === 'https:' && !/^(localhost|127\.)/.test(location.hostname)) ||
+    (() => { try { return localStorage.getItem('escalaCerta.rastreio') === '1'; } catch (_) { return false; } })();
+  if (RASTREIO) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', GA_ID);
+    const ga = document.createElement('script');
+    ga.async = true; ga.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+    document.head.appendChild(ga);
+    // o trecho oficial do Pixel, por extenso
+    const fbq = window.fbq = function () { fbq.callMethod ? fbq.callMethod.apply(fbq, arguments) : fbq.queue.push(arguments); };
+    if (!window._fbq) window._fbq = fbq;
+    fbq.push = fbq; fbq.loaded = true; fbq.version = '2.0'; fbq.queue = [];
+    const px = document.createElement('script');
+    px.async = true; px.src = 'https://connect.facebook.net/en_US/fbevents.js';
+    document.head.appendChild(px);
+    fbq('init', PIXEL_ID);
+    fbq('track', 'PageView');
+  }
+  // cada passo do funil, com o nome no GA4 e o evento padrão da Meta (a Meta otimiza a campanha por eles)
+  const EVENTOS = {
+    calculo: ['calculo_feito', 'ViewContent'],
+    liberar: ['clique_liberar', 'AddToCart'],
+    conta: ['sign_up', 'CompleteRegistration'],
+    checkout: ['begin_checkout', 'InitiateCheckout'],
+    compra: ['purchase', 'Purchase'],
+  };
+  function rastreia(nome, ga, meta, eventID) {
+    if (!RASTREIO) return;
+    const [g, m] = EVENTOS[nome];
+    try { window.gtag('event', g, ga || {}); } catch (_) { /* rastreio nunca derruba a página */ }
+    try { eventID ? window.fbq('track', m, meta || {}, { eventID }) : window.fbq('track', m, meta || {}); } catch (_) { /* idem */ }
+  }
+  const precoVenda = () => Number(($('liberar').closest('.compra')?.querySelector('.preco strong')?.textContent || '').replace(/\D/g, '')) || 37;
+  const itemVenda = () => [{ item_id: 'escala-certa-ilimitado', item_name: 'Escala Certa', price: precoVenda(), quantity: 1 }];
+  let calculoRastreado = false;
   const CHAVE_PENDENTE = 'escalaCerta.pendente';
 
   const estado = {
@@ -765,6 +806,11 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       $('montar').textContent = 'Atualizar escala';
       render();
       agendarSalvar(0);
+      if (!calculoRastreado) {
+        calculoRastreado = true;
+        const eq = estado.equipe || {};
+        rastreia('calculo', { equipe: eq.hoje, faltam: eq.contratadas || 0 }, { content_name: 'resultado do cálculo' });
+      }
       // no celular o resultado fica embaixo do formulário: leva a pessoa até ele
       if (window.innerWidth < 900) {
         const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1245,6 +1291,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const r = await api('POST', '/api/pedido');
       // a página sai para o Mercado Pago: guarda a escala para mostrar a mesma na volta
       try { localStorage.setItem(CHAVE_PENDENTE, JSON.stringify({ pedido: r.pedido, snap: snapshot(), quando: Date.now() })); } catch (_) { /* sem armazenamento local */ }
+      rastreia('checkout', { value: precoVenda(), currency: 'BRL', items: itemVenda() }, { value: precoVenda(), currency: 'BRL' });
+      if (RASTREIO) await espera(400);       // dá tempo de os avisos saírem antes de trocar de página
       location.href = r.url;
     } catch (e) {
       b.disabled = false; b.textContent = 'Liberar minha escala completa';
@@ -1293,6 +1341,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
           try { localStorage.removeItem(CHAVE_PENDENTE); } catch (_) { /* sem armazenamento local */ }
           history.replaceState(null, '', location.pathname);
           avisoPag('Pagamento confirmado. Seu acesso é ilimitado: monte e ajuste a escala quantas vezes quiser.', 'ok');
+          if (r.status === 'aprovado') {
+            const marca = `escalaCerta.compra.${pid}`;
+            let ja = false;
+            try { ja = localStorage.getItem(marca) === '1'; localStorage.setItem(marca, '1'); } catch (_) { /* sem armazenamento */ }
+            if (!ja) rastreia('compra', { transaction_id: pid, value: precoVenda(), currency: 'BRL', items: itemVenda() },
+              { value: precoVenda(), currency: 'BRL', content_ids: ['escala-certa-ilimitado'], content_type: 'product' }, `compra-${pid}`);
+          }
           liberarNaTela();
           return;
         }
@@ -1453,6 +1508,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       }
       const rota = { criar: '/api/conta', entrar: '/api/entrar', redefinir: '/api/senha/redefinir' }[acao];
       estado.eu = Object.assign({ logado: true }, await api('POST', rota, dados));
+      if (acao === 'criar') rastreia('conta', { method: 'email' });
       $('dlg-conta').close();
       const depois = aposConta;
       aposConta = null;
@@ -1466,6 +1522,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   });
 
   $('liberar').addEventListener('click', () => {
+    rastreia('liberar', { value: precoVenda(), currency: 'BRL', items: itemVenda() }, { value: precoVenda(), currency: 'BRL' });
     if (!SERVIDOR) { liberarNaTela(); return; }                  // protótipo aberto direto do arquivo
     if (!estado.eu) { abrirConta('criar', async () => { renderTopo(); await comprar(); }); return; }
     comprar();
