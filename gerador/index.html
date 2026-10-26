@@ -418,8 +418,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
           <button type="button" class="botao pequeno" id="pv-prox" aria-label="Próximo mês">›</button>
         </div>
         <div class="alterna" role="group" aria-label="Como ver a prévia">
-          <button type="button" data-visao="dia" aria-pressed="true">Uma linha por dia</button>
-          <button type="button" data-visao="pessoa" aria-pressed="false">Uma linha por pessoa</button>
+          <button type="button" data-visao="pessoa" aria-pressed="true">Uma linha por pessoa</button>
+          <button type="button" data-visao="dia" aria-pressed="false">Uma linha por dia</button>
         </div>
       </div>
       <div class="quadro"><div class="rolagem previa" id="previa"></div></div>
@@ -449,8 +449,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
             <button type="button" class="botao pequeno" id="mes-prox" aria-label="Próximo mês">›</button>
           </div>
           <div class="alterna" role="group" aria-label="Como ver o calendário">
-            <button type="button" data-visao="dia" aria-pressed="true">Uma linha por dia</button>
-            <button type="button" data-visao="pessoa" aria-pressed="false">Uma linha por pessoa</button>
+            <button type="button" data-visao="pessoa" aria-pressed="true">Uma linha por pessoa</button>
+            <button type="button" data-visao="dia" aria-pressed="false">Uma linha por dia</button>
           </div>
         </div>
         <div class="grupo">
@@ -567,7 +567,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     pessoas: [{ nome: 'Ana', sexo: '' }, { nome: 'Bruno', sexo: '' }, { nome: 'Carla', sexo: '' }],
     res: null, grade: null, val: null, equipe: null, jaMontou: false,
     maxSeguidos: 5,            // 5 sempre; 6 só quando o cliente aceita a sugestão (a lei permite)
-    semente: 0, liberado: false, visao: 'dia', mes: 0, meses: [],
+    semente: 0, liberado: false, visao: 'pessoa', mes: 0, meses: [],
   };
 
   // ---------- formulário: equipe ----------
@@ -796,8 +796,6 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         estado.meses = listaMeses(res.ini, res.fim);
         estado.mes = Math.min(estado.mes, estado.meses.length - 1);
         preencherMeses();
-        // até alguém escolher: equipe pequena lê melhor uma linha por dia; grande, uma linha por pessoa
-        if (!estado.visaoEscolhida) estado.visao = res.cfg.nomes.length <= 6 ? 'dia' : 'pessoa';
       } else {
         estado.grade = null; estado.val = null;
       }
@@ -1114,7 +1112,6 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   const redesenharMes = () => (estado.liberado ? renderCalendario() : renderPrevia());
   document.querySelectorAll('.alterna button').forEach(b => b.addEventListener('click', () => {
     estado.visao = b.dataset.visao;
-    estado.visaoEscolhida = true;
     redesenharMes();
   }));
   const irMes = i => { estado.mes = Math.max(0, Math.min(estado.meses.length - 1, i)); redesenharMes(); };
@@ -1245,7 +1242,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     estado.minimoManual = f.minimoManual === true;
     renderPessoas(); atualizaFechados();
     if (!s.res || !s.res.ok) return;
-    estado.res = s.res; estado.grade = s.grade; estado.equipe = s.equipe; estado.visao = s.visao || 'dia';
+    estado.res = s.res; estado.grade = s.grade; estado.equipe = s.equipe; estado.visao = s.visao || 'pessoa';
     estado.trocas = [];                  // trocas antigas continuam na grade; "voltar à original" ainda funciona
     estado.val = M.validar(s.res.cfg, s.res.seg0, s.grade);
     estado.meses = listaMeses(s.res.ini, s.res.fim);
