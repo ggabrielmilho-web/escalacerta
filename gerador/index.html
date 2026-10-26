@@ -1243,20 +1243,36 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     try {
       const r = await api('POST', '/api/pedido');
       // a página sai para o Mercado Pago: guarda a escala para mostrar a mesma na volta
-      try { localStorage.setItem(CHAVE_PENDENTE, JSON.stringify({ pedido: r.pedido, snap: snapshot() })); } catch (_) { /* sem armazenamento local */ }
+      try { localStorage.setItem(CHAVE_PENDENTE, JSON.stringify({ pedido: r.pedido, snap: snapshot(), quando: Date.now() })); } catch (_) { /* sem armazenamento local */ }
       location.href = r.url;
     } catch (e) {
-      avisoPag(e.message, 'erro');
       b.disabled = false; b.textContent = 'Liberar minha escala completa';
+      if (e.status === 409) {                 // o pagamento anterior já liberou: não cobra de novo
+        estado.eu = Object.assign({}, estado.eu, { ativo: true });
+        renderTopo(); liberarNaTela();
+        avisoPag('Sua conta já tem acesso ilimitado.', 'ok');
+        return;
+      }
+      avisoPag(e.message, 'erro');
     }
   }
-
-  async function voltaDoPagamento(pid) {
+  // pagamento em andamento (o código Pix vale 23 h); passado um dia, esquece
+  function pagamentoPendente() {
     let pend = null;
-    try { pend = JSON.parse(localStorage.getItem(CHAVE_PENDENTE) || 'null'); } catch (_) { /* nada guardado */ }
+    try { pend = JSON.parse(localStorage.getItem(CHAVE_PENDENTE) || 'null'); } catch (_) { return null; }
+    if (pend && pend.quando && Date.now() - pend.quando > 24 * 3600 * 1000) {
+      try { localStorage.removeItem(CHAVE_PENDENTE); } catch (_) { /* sem armazenamento local */ }
+      return null;
+    }
+    return pend && pend.pedido ? pend : null;
+  }
+
+  // tentativas: 40 (2 min) na volta do Mercado Pago; poucas quando a pessoa só abriu o site de novo
+  async function voltaDoPagamento(pid, tentativas = 40) {
+    const pend = pagamentoPendente();
     if (pend && pend.pedido === pid && pend.snap && !estado.res) restaurar(pend.snap);
     avisoPag('Confirmando o seu pagamento com o Mercado Pago…', 'espera');
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < tentativas; i++) {
       let r = null;
       try { r = await api('GET', `/api/pedido/${encodeURIComponent(pid)}`); } catch (e) {
         if (e.status === 401) {
@@ -1264,7 +1280,10 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
           abrirConta('entrar', () => voltaDoPagamento(pid));
           return;
         }
-        if (e.status === 404) { avisoPag('Não encontramos esse pagamento na sua conta.', 'erro'); return; }
+        if (e.status === 404) {
+          try { localStorage.removeItem(CHAVE_PENDENTE); } catch (_) { /* sem armazenamento local */ }
+          avisoPag('Não encontramos esse pagamento na sua conta.', 'erro'); return;
+        }
       }
       if (r) {
         estado.eu = Object.assign({}, estado.eu, r, { logado: true });
@@ -1284,7 +1303,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       }
       await espera(3000);
     }
-    avisoPag('Ainda não recebemos a confirmação. No Pix pode levar alguns segundos.', 'espera',
+    avisoPag(tentativas < 40
+      ? 'Você tem um pagamento em aberto. Se já pagou o Pix, a confirmação chega em alguns segundos.'
+      : 'Ainda não recebemos a confirmação. No Pix pode levar alguns segundos.', 'espera',
       { texto: 'Verificar de novo', acao: () => voltaDoPagamento(pid) });
   }
 
@@ -1466,6 +1487,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       else abrirConta('entrar', () => voltaDoPagamento(pid));
       return;
     }
+    // pagou o Pix no app do banco e abriu o site de novo (sem passar pela volta do Mercado Pago)
+    const pend = pagamentoPendente();
+    if (pend && estado.eu) { voltaDoPagamento(pend.pedido, 3); return; }
     if (estado.eu && estado.eu.ativo) depoisDeEntrar();
   }
   $('baixar').addEventListener('click', async () => {
