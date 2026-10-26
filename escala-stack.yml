@@ -1,0 +1,37 @@
+# Stack da Escala Certa no Portainer do servidor do DanfeZap (Swarm, rede carvalhonet, Traefik).
+# MODELO: o repositório é público. As chaves de verdade são preenchidas só no Portainer, nunca aqui.
+# A imagem é construída no próprio servidor (ver README, seção 12).
+version: "3.7"
+services:
+  escalacerta:
+    image: ghcr.io/ggabrielmilho-web/escala-certa:latest
+    networks:
+      - carvalhonet
+    environment:
+      - DATABASE_URL=postgresql://escala_app:<senha_do_banco>@postgres:5432/escala_certa
+      - MP_ACCESS_TOKEN=<access_token_de_producao_da_aplicacao_escala_certa>
+      - BASE_URL=https://escalacerta.carvalhoia.com
+      - SECRET_KEY=<64_caracteres_aleatorios>
+      - PRECO=37.00
+      - NOME_FATURA=ESCALACERTA
+      - RESEND_API_KEY=<chave_do_resend>
+      - EMAIL_REMETENTE=Escala Certa <nao-responda@carvalhoia.com>
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=1
+        - traefik.http.routers.escalacerta.rule=Host(`escalacerta.carvalhoia.com`)
+        - traefik.http.routers.escalacerta.entrypoints=websecure
+        - traefik.http.routers.escalacerta.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.escalacerta.service=escalacerta
+        - traefik.http.services.escalacerta.loadbalancer.server.port=8000
+        - traefik.http.services.escalacerta.loadbalancer.passHostHeader=true
+
+networks:
+  carvalhonet:
+    external: true
+    name: carvalhonet

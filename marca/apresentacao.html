@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escala Certa · marca</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@600&display=swap">
+<style>
+  :root { --papel: #f3f5f1; --tinta: #17231e; --tinta-2: #56655e; --linha: #d6ddd8; --escuro: #121a17; --acento: #0e5f52; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--papel); color: var(--tinta); font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+    padding: 32px max(16px, env(safe-area-inset-left, 0px)) 48px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: var(--tinta-2); margin: 0 0 28px; }
+  .opcao { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 24px; margin-bottom: 28px; display: flex; flex-direction: column; gap: 20px; }
+  .rot { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acento); }
+  .ideia { margin: 0; max-width: 70ch; }
+  .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .linha { grid-template-columns: 1fr; } }
+  .quadro { border-radius: 10px; padding: 28px; display: flex; align-items: center; justify-content: center; min-height: 140px; }
+  .quadro.claro { background: var(--papel); }
+  .quadro.escuro { background: var(--escuro); }
+  .quadro img { max-width: 100%; height: 56px; }
+  .icones { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+  .icones figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--tinta-2); }
+  .topo { background: var(--papel); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .topo img { height: 30px; align-self: flex-start; }
+  .topo b { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 22px; }
+  .whats { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--linha); border-radius: 10px; padding: 10px 14px; max-width: 360px; }
+  .whats img { width: 48px; height: 48px; border-radius: 50%; }
+  .whats small { color: var(--tinta-2); display: block; }
+</style>
+</head>
+<body>
+  <h1>Escala Certa · proposta de marca</h1>
+  <p class="sub">Duas direções. A palavra é a mesma (Bricolage Grotesque ExtraBold, "Certa" na cor de destaque); muda o símbolo.</p>
+
+  <section class="opcao">
+    <span class="rot">Opção A · Semana 5+2</span>
+    <p class="ideia">Cinco barras são os dias de trabalho; o bloco verde com o "certo" são as duas folgas, no lugar. É o 5x2 desenhado: quem vê entende o produto.</p>
+    <div class="linha">
+      <div class="quadro claro"><img src="escala-certa-A-horizontal.svg" alt="Escala Certa, opção A"></div>
+      <div class="quadro escuro"><img src="escala-certa-A-horizontal-fundo-escuro.svg" alt="Escala Certa, opção A, fundo escuro"></div>
+    </div>
+    <div class="icones">
+      <figure><img src="escala-certa-A-icone.svg" width="128" height="128" alt=""><figcaption>ícone 128</figcaption></figure>
+      <figure><img src="escala-certa-A-icone.svg" width="64" height="64" alt=""><figcaption>64</figcaption></figure>
+      <figure><img src="escala-certa-A-icone.svg" width="32" height="32" alt=""><figcaption>32</figcaption></figure>
+      <figure><img src="escala-certa-A-icone.svg" width="16" height="16" alt=""><figcaption>16 (favicon)</figcaption></figure>
+      <div class="whats"><img src="escala-certa-A-icone.svg" alt=""><div><b>Escala Certa</b><small>perfil no WhatsApp / Instagram</small></div></div>
+    </div>
+    <div class="topo"><img src="escala-certa-A-horizontal.svg" alt=""><b>Descubra quantas pessoas você precisa com a nova escala 5x2</b></div>
+  </section>
+
+  <section class="opcao">
+    <span class="rot">Opção B · A grade que forma o certo</span>
+    <p class="ideia">Uma grade de escala (dias × semanas) em que as folgas marcadas desenham um "certo". Mais icônica e abstrata; funciona muito bem como ícone de app.</p>
+    <div class="linha">
+      <div class="quadro claro"><img src="escala-certa-B-horizontal.svg" alt="Escala Certa, opção B"></div>
+      <div class="quadro escuro"><img src="escala-certa-B-horizontal-fundo-escuro.svg" alt="Escala Certa, opção B, fundo escuro"></div>
+    </div>
+    <div class="icones">
+      <figure><img src="escala-certa-B-icone.svg" width="128" height="128" alt=""><figcaption>ícone 128</figcaption></figure>
+      <figure><img src="escala-certa-B-icone.svg" width="64" height="64" alt=""><figcaption>64</figcaption></figure>
+      <figure><img src="escala-certa-B-icone.svg" width="32" height="32" alt=""><figcaption>32</figcaption></figure>
+      <figure><img src="escala-certa-B-icone.svg" width="16" height="16" alt=""><figcaption>16 (favicon)</figcaption></figure>
+      <div class="whats"><img src="escala-certa-B-icone.svg" alt=""><div><b>Escala Certa</b><small>perfil no WhatsApp / Instagram</small></div></div>
+    </div>
+    <div class="topo"><img src="escala-certa-B-horizontal.svg" alt=""><b>Descubra quantas pessoas você precisa com a nova escala 5x2</b></div>
+  </section>
+</body>
+</html>

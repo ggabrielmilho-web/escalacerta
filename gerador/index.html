@@ -1,0 +1,1698 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escala Certa</title>
+<link rel="icon" href="img/icone.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/icone-512.png">
+<meta name="theme-color" content="#0e5f52">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: painel de configuração à esquerda; à direita a escala fixa (o rodízio) e, liberado, o calendário mês a mês */
+:root {
+  --papel: #f3f5f1; --cartao: #ffffff; --tinta: #17231e; --tinta-2: #56655e; --linha: #d6ddd8; --linha-forte: #8c9b94;
+  --acento: #0e5f52; --acento-tinta: #ffffff; --acento-suave: #e3efeb;
+  --folga: #cdebd3; --folga-tinta: #1d6634; --domingo: #f5eedf; --fechado: #e5e8e6;
+  --erro: #a8231b; --erro-fundo: #f8dcd8; --aviso: #7d5300; --aviso-fundo: #fbefcf; --azul-fundo: #dbe8f3;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --texto: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --raio: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #121a17; --cartao: #1a2420; --tinta: #e7eeea; --tinta-2: #a2b1aa; --linha: #2f3c36; --linha-forte: #5f7069;
+    --acento: #5cc2ad; --acento-tinta: #0b1f1a; --acento-suave: #1f3a33;
+    --folga: #1f4a2c; --folga-tinta: #9fe0b0; --domingo: #2a261c; --fechado: #262e2a;
+    --erro: #ff9b90; --erro-fundo: #4a1e1a; --aviso: #f3cf7a; --aviso-fundo: #3d311a; --azul-fundo: #1d3040;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #121a17; --cartao: #1a2420; --tinta: #e7eeea; --tinta-2: #a2b1aa; --linha: #2f3c36; --linha-forte: #5f7069;
+  --acento: #5cc2ad; --acento-tinta: #0b1f1a; --acento-suave: #1f3a33;
+  --folga: #1f4a2c; --folga-tinta: #9fe0b0; --domingo: #2a261c; --fechado: #262e2a;
+  --erro: #ff9b90; --erro-fundo: #4a1e1a; --aviso: #f3cf7a; --aviso-fundo: #3d311a; --azul-fundo: #1d3040;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--papel); color: var(--tinta); font-family: var(--texto); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+/* no iPhone, campo com letra menor que 16px faz a tela dar zoom sozinha ao tocar */
+@media (max-width: 600px) { input, select, textarea { font-size: 16px; } }
+:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+
+.barra-topo { max-width: 1320px; margin: 0 auto; padding-block: 18px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; }
+.logo { display: inline-flex; border-radius: 6px; min-width: 0; }
+.logo img { display: block; height: 34px; width: auto; max-width: 100%; }
+@media (max-width: 600px) {
+  .logo img { height: 28px; }
+  .conta-topo .email { display: none; }
+}
+.topo { max-width: 1320px; margin: 0 auto; padding-block: 22px 20px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: end; justify-content: space-between; }
+.marca { display: flex; flex-direction: column; gap: 4px; }
+.marca h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; letter-spacing: -0.02em; }
+.marca h1 span { color: var(--acento); }
+.marca p { margin: 0; color: var(--tinta-2); max-width: 62ch; }
+.selo { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; border: 1px dashed var(--linha-forte); border-radius: 6px; color: var(--tinta-2); }
+
+.app { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .app { grid-template-columns: minmax(0, 1fr); } }
+
+.painel { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px; display: flex; flex-direction: column; gap: 20px; position: sticky; top: 12px; }
+@media (max-width: 900px) { .painel { position: static; } }
+.bloco { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.bloco legend { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-2); padding: 0; margin-bottom: 8px; }
+.dica { font-size: 13px; color: var(--tinta-2); margin: 0; }
+textarea { width: 100%; min-height: 120px; resize: vertical; padding: 10px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); line-height: 1.5; }
+.linha-qtd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.linha-qtd input { width: 80px; }
+input[type="number"], input[type="date"], select { padding: 7px 9px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); min-width: 0; max-width: 100%; }
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--acento); }
+.campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); min-width: 0; }
+
+.tab-dias { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tab-dias th { font-family: var(--mono); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tinta-2); text-align: center; padding: 0 4px 6px; }
+.tab-dias th:first-child { text-align: left; }
+.tab-dias td { padding: 3px 4px; text-align: center; border-top: 1px solid var(--linha); }
+.tab-dias td:first-child { text-align: left; font-weight: 700; }
+.tab-dias input[type="number"] { width: 64px; text-align: center; font-family: var(--mono); }
+.tab-dias tr.fechado td:not(:first-child):not(:nth-child(2)) { opacity: 0.35; }
+
+.botao { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--linha-forte); background: var(--cartao); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 700; white-space: nowrap; }
+.botao:hover { border-color: var(--acento); color: var(--acento); }
+.botao.principal { background: var(--acento); color: var(--acento-tinta); border-color: var(--acento); font-size: 16px; padding: 12px 18px; }
+.botao.principal:hover { filter: brightness(1.08); color: var(--acento-tinta); }
+.botao.pequeno { padding: 5px 10px; font-size: 13px; }
+.botao[disabled] { opacity: 0.5; cursor: default; }
+
+.resultado { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.status { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; border-left: 6px solid var(--acento); }
+.status.ruim { border-left-color: var(--erro); }
+.status.atencao { border-left-color: var(--aviso); }
+.status h2 { font-size: 22px; font-weight: 800; }
+.status p { margin: 0; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 16px; font-size: 14px; }
+.checks li { display: flex; gap: 8px; align-items: baseline; }
+.checks li::before { content: "✓"; color: var(--acento); font-weight: 700; }
+.checks li.nao::before { content: "✕"; color: var(--erro); }
+.sugestoes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.sugestoes li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cobertura { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cobertura .rot { font-size: 13px; color: var(--tinta-2); margin-right: 2px; }
+.chip { font-family: var(--mono); font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--acento-suave); }
+.chip b { font-weight: 600; }
+.dimensao { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--acento-suave); border-radius: 8px; padding: 12px 14px; }
+.dimensao p { margin: 0; flex: 1 1 260px; min-width: 0; }
+.dimensao strong { font-family: var(--display); font-size: 18px; }
+.dimensao .nota { flex-basis: 100%; }
+.problemas { margin: 0; padding-left: 18px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; }
+
+.cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cartao h3 { font-size: 18px; font-weight: 800; }
+.cabeca-cartao { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.nota { font-size: 13px; color: var(--tinta-2); margin: 0; }
+
+.rolagem-fixa { overflow: auto; max-height: 60vh; }
+.fixa thead th { position: sticky; top: 0; background: var(--cartao); z-index: 2; }
+table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.fixa th, .fixa td { border-bottom: 1px solid var(--linha); padding: 7px 10px; white-space: nowrap; text-align: center; }
+.fixa thead th { font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--tinta-2); }
+.fixa thead th small { display: block; font-weight: 400; }
+.fixa th.nome { position: sticky; left: 0; background: var(--cartao); text-align: left; font-family: var(--texto); font-size: 14px; color: var(--tinta); z-index: 1; }
+.fixa thead th.nome { z-index: 3; }
+.fixa td span { display: inline-block; padding: 3px 9px; border-radius: 6px; background: var(--folga); color: var(--folga-tinta); font-weight: 700; }
+.fixa td.repete { color: var(--tinta-2); font-size: 12px; font-style: italic; }
+
+.preco { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.preco strong { font-family: var(--display); font-size: 30px; font-weight: 800; }
+.preco span { font-size: 13px; color: var(--tinta-2); }
+.preco .ilimitado { font-family: var(--display); font-weight: 800; color: var(--acento); background: var(--acento-suave); padding: 1px 7px; border-radius: 999px; }
+
+.barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.grupo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.alterna { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: 8px; overflow: hidden; }
+.alterna button { border: 0; background: var(--cartao); padding: 7px 12px; cursor: pointer; font-weight: 700; font-size: 14px; }
+.alterna button[aria-pressed="true"] { background: var(--tinta); color: var(--papel); }
+.mes-nav { display: inline-flex; gap: 4px; align-items: center; }
+.mes-nav select { font-weight: 700; }
+
+.quadro { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); overflow: hidden; }
+/* tabela mais larga que a tela: a borda direita esmaece e mostra uma seta, para ninguém achar que a semana acaba no sábado */
+.quadro, .moldura { position: relative; }
+.quadro::after, .moldura::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 48px; pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--cartao) 75%); opacity: 0; transition: opacity 150ms;
+}
+.quadro::before, .moldura::before {
+  content: '›'; position: absolute; top: 50%; right: 8px; z-index: 1; width: 30px; height: 30px; margin-top: -15px; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; border-radius: 50%; padding-bottom: 3px; box-sizing: border-box;
+  background: var(--acento); color: var(--acento-tinta); font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); opacity: 0; transition: opacity 150ms;
+}
+.quadro::after, .moldura::after { z-index: 3; }
+.quadro::before, .moldura::before { z-index: 4; }
+.mais-dir::after, .mais-dir::before { opacity: 1; }
+/* celular: o botão do formulário fica quase 2 telas abaixo; enquanto o formulário está na tela, um igual fica fixo embaixo */
+.barra-fixa { display: none; }
+@media (max-width: 899px) {
+  .barra-fixa { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--papel); border-top: 1px solid var(--linha); box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.08); }
+  .barra-fixa .botao { width: 100%; }
+}
+.rolagem { overflow: auto; max-height: 72vh; }
+table.escala { border-collapse: separate; border-spacing: 0; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.escala th, .escala td { border-bottom: 1px solid var(--linha); border-right: 1px solid var(--linha); padding: 0; text-align: center; white-space: nowrap; }
+.escala thead th { position: sticky; top: 0; background: var(--cartao); z-index: 2; font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--tinta-2); padding: 7px 8px; }
+.escala thead tr:nth-child(2) th { top: 31px; }
+.escala .fixa1 { position: sticky; left: 0; background: var(--cartao); z-index: 1; text-align: left; padding: 6px 10px; font-weight: 700; }
+.escala .fixa2 { position: sticky; left: 96px; background: var(--cartao); z-index: 1; text-align: left; padding: 6px 10px; color: var(--tinta-2); }
+.escala thead .fixa1, .escala thead .fixa2 { z-index: 3; }
+.escala.dia .fixa1 { min-width: 96px; width: 96px; }
+.escala td.c { min-width: 92px; height: 34px; }
+.pessoa .escala td.c { min-width: 34px; width: 34px; }
+.escala tr.dom td, .escala tr.dom th, .escala th.dom, .escala td.dom { background: var(--domingo); }
+.escala tr.fimsem td, .escala tr.fimsem th { border-bottom: 2px solid var(--linha-forte); }
+.escala .fimsem-col { border-right: 2px solid var(--linha-forte); }
+.v { display: block; padding: 6px 8px; }
+.v.F { background: var(--folga); color: var(--folga-tinta); font-weight: 700; }
+.v.X { background: var(--fechado); color: var(--tinta-2); }
+.v.T { color: var(--tinta-2); }
+.pessoa .v { padding: 6px 0; }
+.editavel .v.T, .editavel .v.F { cursor: pointer; }
+.editavel .v.T:hover, .editavel .v.F:hover { outline: 2px solid var(--acento); outline-offset: -2px; }
+.v.m1 { background: var(--erro-fundo); color: var(--erro); font-weight: 700; box-shadow: inset 0 0 0 2px var(--erro); }
+.v.m2 { box-shadow: inset 0 0 0 2px var(--aviso); background: var(--aviso-fundo); color: var(--aviso); font-weight: 700; }
+.v.m4:not(.F):not(.m1) { background: var(--aviso-fundo); color: var(--aviso); }
+.v.F.m8 { box-shadow: inset 0 0 0 2px var(--aviso); }
+.avisos { background: var(--aviso-fundo); color: var(--aviso); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+.avisos ul { margin: 4px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; }
+.escala th.falta-col { background: var(--erro-fundo); color: var(--erro); }
+.trocas { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 14px; color: var(--tinta-2); }
+.trocas .ruim { color: var(--erro); }
+.trocas .atento { color: var(--aviso); }
+.cob { font-family: var(--mono); font-weight: 600; padding: 6px 8px; display: block; }
+.cob.falta { background: var(--erro-fundo); color: var(--erro); }
+.cob.um { background: var(--aviso-fundo); color: var(--aviso); }
+.cob.cheio { background: var(--azul-fundo); }
+.feriado { color: var(--erro) !important; }
+.curto { display: none; }
+@media (max-width: 600px) {
+  .escala.dia .fixa1 { min-width: 64px; width: 64px; }
+  .escala.dia .fixa2 { left: 64px; }
+  .longo { display: none; }
+  .curto { display: inline; }
+  .escala td.c { min-width: 84px; }
+}
+.bloq { filter: blur(5px); user-select: none; pointer-events: none; }
+
+.marca .eyebrow { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acento); }
+.qtd-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.qtd-linha label { font-weight: 700; font-size: 15px; }
+.qtd-linha input { width: 90px; font-size: 20px; font-family: var(--mono); font-weight: 600; text-align: center; }
+input[type="text"] { padding: 7px 9px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); min-width: 0; width: 100%; }
+.pessoas { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; padding-right: 2px; }
+.pessoa-linha { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.pessoas.com-sexo .pessoa-linha { grid-template-columns: 22px minmax(0, 1fr) 104px auto; }
+.pessoa-linha .num { font-family: var(--mono); font-size: 12px; color: var(--tinta-2); text-align: right; }
+.pessoa-linha select.falta { border-color: var(--erro); box-shadow: 0 0 0 1px var(--erro); }
+.tirar { border: 0; background: none; color: var(--tinta-2); cursor: pointer; font-size: 15px; padding: 4px 6px; border-radius: 6px; }
+.tirar:hover { color: var(--erro); background: var(--erro-fundo); }
+.botao-link { border: 0; background: none; color: var(--acento); font-weight: 700; cursor: pointer; padding: 4px 2px; text-decoration: underline; text-underline-offset: 3px; }
+.colar { display: flex; flex-direction: column; gap: 6px; }
+.rotulo-ajuda { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--tinta); font-weight: 700; }
+.ajuda { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--linha-forte); background: var(--cartao); color: var(--tinta-2); font-weight: 700; font-size: 12px; cursor: pointer; line-height: 1; padding: 0; }
+.ajuda[aria-expanded="true"] { background: var(--acento); color: var(--acento-tinta); border-color: var(--acento); }
+.ajuda-texto { margin: 0; font-size: 13px; background: var(--acento-suave); border-radius: 8px; padding: 10px 12px; }
+.opcoes { display: flex; gap: 18px; font-size: 15px; }
+.opcoes label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.opcoes input { width: 18px; height: 18px; accent-color: var(--acento); }
+.opcoes.falta { outline: 2px solid var(--erro); outline-offset: 4px; border-radius: 4px; }
+.aviso-form { margin: 0; font-size: 14px; color: var(--erro); font-weight: 700; }
+
+.placar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.placar div { background: var(--papel); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.placar span { font-size: 12px; color: var(--tinta-2); }
+.placar b { font-family: var(--display); font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.placar .falta-gente { background: var(--aviso-fundo); }
+.placar .falta-gente b { color: var(--aviso); }
+.placar .da-conta { background: var(--acento-suave); }
+.placar .da-conta b { color: var(--acento); font-size: 22px; }
+
+.eyebrow { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acento); }
+.passos { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
+.passos li { padding-left: 4px; }
+.passos li::marker { font-family: var(--display); font-weight: 800; color: var(--acento); }
+.amostra { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; opacity: 0.9; }
+.amostra .escala td.c { min-width: 84px; }
+.proximo { gap: 12px; border: 1px solid var(--acento); }
+.proximo h3 { font-size: clamp(20px, 2.4vw, 24px); }
+.proximo #prox-texto { margin: 0; }
+.rolagem.previa { max-height: none; }
+.lista-ok { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.lista-ok li { display: flex; gap: 8px; align-items: baseline; }
+.lista-ok li::before { content: "✓"; color: var(--acento); font-weight: 700; }
+.compra { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; border-top: 1px solid var(--linha); padding-top: 14px; }
+.compra .botao.principal { flex: 0 1 auto; }
+
+input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); min-width: 0; width: 100%; }
+.conta-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }
+.conta-topo .email { color: var(--tinta-2); max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aviso-pag { border-radius: 10px; padding: 12px 16px; font-weight: 700; display: flex; gap: 10px 14px; align-items: center; flex-wrap: wrap; }
+.aviso-pag.ok { background: var(--acento-suave); color: var(--acento); }
+.aviso-pag.espera { background: var(--aviso-fundo); color: var(--aviso); }
+.aviso-pag.erro { background: var(--erro-fundo); color: var(--erro); }
+.dlg { border: 1px solid var(--linha-forte); border-radius: 14px; padding: 24px 22px 20px; width: min(420px, calc(100vw - 32px)); background: var(--cartao); color: var(--tinta); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25); }
+.dlg::backdrop { background: rgba(10, 20, 16, 0.5); }
+.dlg h2 { font-size: 22px; font-weight: 800; padding-right: 28px; }
+.dlg #dlg-sub { margin: 6px 0 14px; }
+.dlg-fechar { position: absolute; top: 12px; right: 12px; margin: 0; }
+.campos { display: flex; flex-direction: column; gap: 12px; }
+.campos label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); font-weight: 700; }
+.campos .botao.principal { margin-top: 4px; }
+.links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 14px; margin-top: 12px; }
+.mostrar { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--tinta-2); font-weight: 400 !important; flex-direction: row !important; }
+
+.lado { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 700px) { .lado { grid-template-columns: minmax(0, 1fr); } }
+.mini { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.mini th { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tinta-2); text-align: center; font-weight: 600; padding: 4px; }
+.mini th:first-child, .mini td:first-child { text-align: left; }
+.mini td { border-top: 1px solid var(--linha); padding: 5px 4px; text-align: center; }
+.tabela-rolagem { overflow: auto; max-height: 300px; }
+.aviso-copia { font-size: 13px; color: var(--acento); margin: 0; }
+@media (prefers-reduced-motion: no-preference) { .status, .cartao { animation: entra 220ms ease-out; } }
+@keyframes entra { from { transform: translateY(4px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="barra-topo">
+  <a href="./" class="logo" aria-label="Escala Certa, início">
+    <picture>
+      <source srcset="img/logo-fundo-escuro.svg" media="(prefers-color-scheme: dark)">
+      <img src="img/logo.svg" alt="Escala Certa">
+    </picture>
+  </a>
+  <div class="conta-topo" id="conta-topo"><span class="selo">Protótipo</span></div>
+</div>
+<header class="topo">
+  <div class="marca">
+    <h1>Descubra quantas pessoas você precisa com a nova escala <span>5x2</span></h1>
+    <p>Informe a sua equipe e como a empresa funciona. Você sai com a resposta e com a escala pronta, conferida e que se repete sozinha. A regra de 2 folgas por semana vale a partir de 16/12/2026.</p>
+  </div>
+</header>
+
+<main class="app">
+  <form id="config" class="painel" novalidate>
+    <fieldset class="bloco">
+      <legend>1 · Sua equipe hoje</legend>
+      <div class="qtd-linha">
+        <label for="qtd">Quantas pessoas você tem hoje?</label>
+        <input type="number" id="qtd" min="0" max="500" value="3">
+      </div>
+      <div class="pessoas" id="pessoas"></div>
+      <div class="linha-qtd">
+        <button type="button" class="botao pequeno" id="adicionar">+ Adicionar pessoa</button>
+        <button type="button" class="botao-link" id="abrir-colar" aria-expanded="false">Colar lista de nomes</button>
+      </div>
+      <div class="colar" id="colar-bloco" hidden>
+        <textarea id="colar" aria-label="Lista de nomes, um por linha" placeholder="Um nome por linha" spellcheck="false"></textarea>
+        <button type="button" class="botao pequeno" id="usar-colar">Usar estes nomes</button>
+      </div>
+      <p class="dica">Os nomes são opcionais. Se faltar gente para a regra nova, o app diz quantas pessoas contratar.</p>
+    </fieldset>
+
+    <fieldset class="bloco">
+      <legend>2 · Funcionamento</legend>
+      <table class="tab-dias">
+        <thead><tr><th>Dia</th><th>Abre</th><th>Mínimo de pessoas</th><th>Pode folgar</th></tr></thead>
+        <tbody id="dias"></tbody>
+      </table>
+      <p class="dica">Mínimo = quantas pessoas precisam estar trabalhando no dia.</p>
+      <p class="dica" id="dica-minimo"></p>
+    </fieldset>
+
+    <fieldset class="bloco">
+      <legend>3 · Regras</legend>
+      <div class="campo">
+        <span class="rotulo-ajuda">Ramo da empresa
+          <button type="button" class="ajuda" data-ajuda="ajuda-ramo" aria-expanded="false" aria-label="O que muda com o ramo">?</button></span>
+        <select id="ramo" aria-label="Ramo da empresa">
+          <option value="3">Comércio: domingo de folga a cada 3 semanas</option>
+          <option value="7">Indústria, transporte ou serviços: a cada 7 semanas</option>
+        </select>
+      </div>
+      <p class="ajuda-texto" id="ajuda-ramo" hidden>No comércio, a folga precisa cair no domingo pelo menos 1 vez a cada 3 semanas (Lei 10.101/2000). Nas demais atividades, 1 vez a cada 7 semanas (Portaria MTP 671/2021). Motorista em viagem segue regra própria (Lei 13.103/2015) e não entra nesta escala.</p>
+      <div class="campo">
+        <span class="rotulo-ajuda">Sua empresa se enquadra no art. 386 da CLT?
+          <button type="button" class="ajuda" data-ajuda="ajuda-386" aria-expanded="false" aria-label="O que é o art. 386">?</button></span>
+        <div class="opcoes" id="opcoes-386" role="radiogroup" aria-label="Enquadra no art. 386">
+          <label><input type="radio" name="art386" value="sim"> Sim</label>
+          <label><input type="radio" name="art386" value="nao" checked> Não</label>
+        </div>
+      </div>
+      <p class="ajuda-texto" id="ajuda-386" hidden>O art. 386 manda que mulheres que trabalham no domingo folguem em domingos alternados. A lei vale para qualquer ramo, mas os processos na Justiça são quase todos do comércio. Se marcar Sim, informe o sexo de cada pessoa: a regra vale só para as mulheres. Na dúvida, pergunte ao contador.</p>
+    </fieldset>
+
+    <fieldset class="bloco">
+      <legend>4 · Início</legend>
+      <label class="campo">A escala começa em <input type="date" id="inicio"></label>
+      <p class="dica">Ela se repete sozinha. O calendário mostra os 12 meses seguintes, com os feriados.</p>
+    </fieldset>
+
+    <p class="aviso-form" id="aviso-form" hidden></p>
+    <button type="submit" class="botao principal" id="montar">Descobrir quantas pessoas eu preciso</button>
+  </form>
+  <div class="barra-fixa" id="barra-fixa" hidden>
+    <button type="submit" form="config" class="botao principal" id="montar-fixo" tabindex="-1">Descobrir quantas pessoas eu preciso</button>
+  </div>
+
+  <section class="resultado" aria-live="polite">
+    <div class="cartao como" id="como">
+      <span class="eyebrow">Como funciona</span>
+      <ol class="passos">
+        <li><b>Informe a sua equipe</b> e como a empresa funciona: dias abertos, gente mínima por dia e as regras do domingo.</li>
+        <li><b>Veja quantas pessoas a regra nova pede</b>, comparado com quem você tem hoje. Se faltar gente, o app diz quantas contratar.</li>
+        <li><b>Receba a escala pronta</b>: quem folga em cada dia, conferida contra a lei, que se repete sozinha.</li>
+      </ol>
+      <div class="amostra" aria-hidden="true">
+        <span class="nota">Exemplo do que você recebe</span>
+        <table class="escala dia">
+          <thead><tr><th class="fixa1">Data</th><th class="fixa2">Dia</th><th>Ana</th><th>Bruno</th><th>Carla</th></tr></thead>
+          <tbody>
+            <tr><th class="fixa1">14/12</th><th class="fixa2">Segunda</th><td class="c"><span class="v T">Trabalha</span></td><td class="c"><span class="v F">Folga</span></td><td class="c"><span class="v T">Trabalha</span></td></tr>
+            <tr><th class="fixa1">15/12</th><th class="fixa2">Terça</th><td class="c"><span class="v F">Folga</span></td><td class="c"><span class="v T">Trabalha</span></td><td class="c"><span class="v T">Trabalha</span></td></tr>
+            <tr><th class="fixa1">16/12</th><th class="fixa2">Quarta</th><td class="c"><span class="v F">Folga</span></td><td class="c"><span class="v T">Trabalha</span></td><td class="c"><span class="v T">Trabalha</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="aviso-pag" id="aviso-pagamento" role="status" hidden></div>
+    <div id="status" class="status" hidden></div>
+
+    <div class="cartao proximo" id="proximo" hidden>
+      <div class="cabeca-cartao">
+        <span class="eyebrow">Sua próxima etapa</span>
+        <button type="button" class="botao pequeno" id="outra">Ver outra opção de rodízio</button>
+      </div>
+      <h3 id="prox-titulo"></h3>
+      <p id="prox-texto"></p>
+      <div class="barra">
+        <div class="mes-nav">
+          <button type="button" class="botao pequeno" id="pv-ant" aria-label="Mês anterior">‹</button>
+          <select id="pv-mes" aria-label="Mês da prévia"></select>
+          <button type="button" class="botao pequeno" id="pv-prox" aria-label="Próximo mês">›</button>
+        </div>
+        <div class="alterna" role="group" aria-label="Como ver a prévia">
+          <button type="button" data-visao="dia" aria-pressed="true">Uma linha por dia</button>
+          <button type="button" data-visao="pessoa" aria-pressed="false">Uma linha por pessoa</button>
+        </div>
+      </div>
+      <div class="quadro"><div class="rolagem previa" id="previa"></div></div>
+      <p class="nota" id="pv-aviso"></p>
+      <p class="nota" id="prox-ciclo"></p>
+      <ul class="lista-ok">
+        <li>Folgas de cada pessoa, dia a dia, por 12 meses</li>
+        <li>Conferida: 2 folgas por semana, domingos e mínimo de gente por dia</li>
+        <li>Excel pronto para imprimir, que fica vermelho se alguém errar uma troca</li>
+      </ul>
+      <div class="compra">
+        <div class="preco"><strong>R$ 37</strong><span>pagamento único · <b class="ilimitado">acesso ilimitado</b> · monte de novo quantas vezes quiser</span></div>
+        <button type="button" class="botao principal" id="liberar">Liberar minha escala completa</button>
+      </div>
+      <p class="nota" id="nota-prototipo">Protótipo aberto direto do arquivo: o botão libera sem cobrar. Pelo site, aqui entra a conta e o pagamento.</p>
+      <p class="nota" id="ja-comprei" hidden>Pix ou cartão, no ambiente seguro do Mercado Pago. Já comprou?
+        <button type="button" class="botao-link" id="abrir-entrar">Entrar na minha conta</button></p>
+    </div>
+
+    <div id="pago" class="resultado" hidden>
+      <div class="barra">
+        <div class="grupo">
+          <div class="mes-nav">
+            <button type="button" class="botao pequeno" id="mes-ant" aria-label="Mês anterior">‹</button>
+            <select id="mes" aria-label="Mês do calendário"></select>
+            <button type="button" class="botao pequeno" id="mes-prox" aria-label="Próximo mês">›</button>
+          </div>
+          <div class="alterna" role="group" aria-label="Como ver o calendário">
+            <button type="button" data-visao="dia" aria-pressed="true">Uma linha por dia</button>
+            <button type="button" data-visao="pessoa" aria-pressed="false">Uma linha por pessoa</button>
+          </div>
+        </div>
+        <div class="grupo">
+          <select id="formato" aria-label="Formato da planilha">
+            <option value="dia">Excel: uma linha por dia</option>
+            <option value="pessoa">Excel: uma linha por pessoa</option>
+          </select>
+          <button type="button" class="botao" id="baixar">Baixar Excel</button>
+        </div>
+        <div class="grupo">
+          <select id="img-quem" aria-label="Imagem de quem: equipe toda ou uma pessoa"></select>
+          <button type="button" class="botao" id="imagem">Imagem do mês p/ WhatsApp</button>
+          <button type="button" class="botao" id="copiar">Copiar texto</button>
+        </div>
+      </div>
+      <p class="aviso-copia" id="aviso-copia" hidden></p>
+      <div class="trocas" id="trocas" hidden>
+        <span id="trocas-texto"></span>
+        <button type="button" class="botao-link" id="desfazer">Desfazer a última</button>
+        <button type="button" class="botao-link" id="desfazer-todas">Voltar à escala original</button>
+      </div>
+      <p class="nota" id="salvo" hidden></p>
+      <div class="quadro"><div class="rolagem" id="rolagem"></div></div>
+      <p class="nota" id="feriados-mes"></p>
+      <div class="cartao" id="cartao-fixa">
+        <div class="cabeca-cartao">
+          <h3 id="fixa-titulo">Escala fixa</h3>
+          <button type="button" class="botao pequeno" id="outra2">Ver outra opção de rodízio</button>
+        </div>
+        <p class="nota" id="fixa-sub"></p>
+        <div class="moldura"><div class="rolagem-fixa"><table class="fixa" id="fixa"></table></div></div>
+      </div>
+      <div class="lado">
+        <div class="cartao">
+          <h3>Por pessoa, nos 12 meses</h3>
+          <div class="moldura"><div class="tabela-rolagem"><table class="mini" id="resumo"></table></div></div>
+        </div>
+        <div class="cartao">
+          <h3>Trocas de um dia</h3>
+          <p class="nota">Clique numa célula do calendário para trocar folga por trabalho naquele dia. A escala fixa não muda; a troca vale só para a data. Ao atualizar a escala ou ver outra opção, as trocas se perdem.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog class="dlg" id="dlg-conta" aria-labelledby="dlg-titulo">
+  <form method="dialog" class="dlg-fechar"><button class="tirar" aria-label="Fechar">✕</button></form>
+  <h2 id="dlg-titulo"></h2>
+  <p class="nota" id="dlg-sub"></p>
+  <div id="dlg-corpo"></div>
+  <p class="aviso-form" id="dlg-erro" role="alert" hidden></p>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="motor.js"></script>
+<script src="exportar.js"></script>
+<script>
+(function () {
+  'use strict';
+  const M = window.MotorEscala;
+  const DIA_NOME = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const PALAVRA = { T: 'Trabalha', F: 'Folga', X: 'Fechado' };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+  // pelo site há conta e pagamento; aberto direto do arquivo, o protótipo libera sem cobrar
+  const SERVIDOR = /^https?:$/.test(location.protocol);
+  const CHAVE_PENDENTE = 'escalaCerta.pendente';
+
+  const estado = {
+    pessoas: [{ nome: 'Ana', sexo: '' }, { nome: 'Bruno', sexo: '' }, { nome: 'Carla', sexo: '' }],
+    res: null, grade: null, val: null, equipe: null, jaMontou: false,
+    maxSeguidos: 5,            // 5 sempre; 6 só quando o cliente aceita a sugestão (a lei permite)
+    semente: 0, liberado: false, visao: 'dia', mes: 0, meses: [],
+  };
+
+  // ---------- formulário: equipe ----------
+  function art386() {
+    const r = document.querySelector('input[name="art386"]:checked');
+    return r ? r.value === 'sim' : null;
+  }
+  function renderPessoas() {
+    const comSexo = art386() === true;
+    const box = $('pessoas');
+    box.classList.toggle('com-sexo', comSexo);
+    box.innerHTML = estado.pessoas.map((p, i) => `
+      <div class="pessoa-linha">
+        <span class="num">${i + 1}</span>
+        <input type="text" data-i="${i}" data-campo="nome" value="${esc(p.nome)}" placeholder="Funcionário ${i + 1}" aria-label="Nome da pessoa ${i + 1}">
+        <select data-i="${i}" data-campo="sexo" aria-label="Sexo da pessoa ${i + 1}" ${comSexo ? '' : 'hidden'}>
+          <option value="">Sexo</option>
+          <option value="F" ${p.sexo === 'F' ? 'selected' : ''}>Mulher</option>
+          <option value="M" ${p.sexo === 'M' ? 'selected' : ''}>Homem</option>
+        </select>
+        <button type="button" class="tirar" data-tirar="${i}" aria-label="Remover pessoa ${i + 1}">✕</button>
+      </div>`).join('');
+    $('qtd').value = estado.pessoas.length;
+    if (!estado.minimoManual) aplicarSugestao(); else mostrarMinimoManual();
+  }
+  function tamanhoEquipe(n) {
+    n = Math.max(0, Math.min(500, n | 0));
+    if (n === estado.pessoas.length) return;     // redesenhar à toa tira o foco de quem vai clicar num nome
+    while (estado.pessoas.length < n) estado.pessoas.push({ nome: '', sexo: '' });
+    estado.pessoas.length = n;
+    renderPessoas();
+  }
+  $('qtd').addEventListener('change', () => tamanhoEquipe(+$('qtd').value));
+  $('qtd').addEventListener('input', () => { if ($('qtd').value !== '') tamanhoEquipe(+$('qtd').value); });
+  $('pessoas').addEventListener('input', ev => {
+    const el = ev.target, i = +el.dataset.i;
+    if (!el.dataset.campo || !estado.pessoas[i]) return;
+    estado.pessoas[i][el.dataset.campo] = el.value;
+    if (el.dataset.campo === 'sexo') el.classList.remove('falta');
+  });
+  $('pessoas').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-tirar]');
+    if (!b) return;
+    estado.pessoas.splice(+b.dataset.tirar, 1);
+    renderPessoas();
+  });
+  $('adicionar').addEventListener('click', () => {
+    estado.pessoas.push({ nome: '', sexo: '' });
+    renderPessoas();
+    const ult = $('pessoas').querySelector('.pessoa-linha:last-child input');
+    if (ult) ult.focus();
+  });
+  $('abrir-colar').addEventListener('click', () => {
+    const aberto = $('colar-bloco').hidden;
+    $('colar-bloco').hidden = !aberto;
+    $('abrir-colar').setAttribute('aria-expanded', String(aberto));
+    if (aberto) $('colar').focus();
+  });
+  $('usar-colar').addEventListener('click', () => {
+    const nomes = $('colar').value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!nomes.length) return;
+    estado.pessoas = nomes.map((nome, i) => ({ nome, sexo: (estado.pessoas[i] || {}).sexo || '' }));
+    $('colar-bloco').hidden = true;
+    $('abrir-colar').setAttribute('aria-expanded', 'false');
+    renderPessoas();
+  });
+  document.querySelectorAll('input[name="art386"]').forEach(r => r.addEventListener('change', () => {
+    $('opcoes-386').classList.remove('falta');
+    renderPessoas();
+  }));
+  document.querySelectorAll('.ajuda').forEach(b => b.addEventListener('click', () => {
+    const alvo = $(b.dataset.ajuda), abrir = alvo.hidden;
+    alvo.hidden = !abrir;
+    b.setAttribute('aria-expanded', String(abrir));
+  }));
+
+  // ---------- formulário: funcionamento e período ----------
+  // O mínimo começa com a operação de hoje no 6x1: cada pessoa trabalha 6 dias e, com o domingo aberto,
+  // a regra do domingo tira uma parte da equipe todo domingo. Sem mexer em nada, a conta responde
+  // "para manter a operação de hoje no 5x2, faltam X" (uns 20% a mais). Enquanto a pessoa não mexe,
+  // o mínimo acompanha equipe, dias abertos e ramo; mexeu, os números dela ficam.
+  function operacaoDeHoje(n) {
+    const abertos = [0, 1, 2, 3, 4, 5, 6].filter(i => $(`ab-${i}`).checked);
+    if (abertos.length <= 6) return [0, 1, 2, 3, 4, 5, 6].map(() => n);   // no 6x1 todos trabalham todo dia aberto
+    const dom = n - Math.ceil(n / (+$('ramo').value || 3));
+    const resto = Math.floor((6 * n - dom) / 6);
+    return [resto, resto, resto, resto, resto, resto, dom];
+  }
+  $('dias').innerHTML = M.DIAS.map((d, i) => `
+    <tr id="linha-${i}">
+      <td>${DIA_NOME[i]}</td>
+      <td><input type="checkbox" id="ab-${i}" checked aria-label="${DIA_NOME[i]}: abre"></td>
+      <td><input type="number" id="mi-${i}" min="0" value="2" aria-label="${DIA_NOME[i]}: mínimo de pessoas"></td>
+      <td><input type="checkbox" id="fo-${i}" checked aria-label="${DIA_NOME[i]}: pode folgar"></td>
+    </tr>`).join('');
+  function aplicarSugestao() {
+    const n = estado.pessoas.length, sug = operacaoDeHoje(n);
+    sug.forEach((v, i) => { $(`mi-${i}`).value = v; });
+    const domAberto = $('ab-6').checked && [0, 1, 2, 3, 4, 5].every(i => $(`ab-${i}`).checked);
+    $('dica-minimo').innerHTML = `Começa com a sua <b>operação de hoje no 6x1</b>: ${plural(sug[0], 'pessoa', 'pessoas')} trabalhando por dia` +
+      (domAberto ? ` e ${sug[6]} no domingo` : '') + '. Ajuste dia a dia se for diferente, ou se hoje você já não usa 6x1: ' +
+      'é com esses números que o app diz quantas pessoas faltam.';
+  }
+  function mostrarMinimoManual() {
+    $('dica-minimo').innerHTML = 'Mínimos definidos por você. ' +
+      '<button type="button" class="botao-link" id="usar-sugestao">Voltar para a operação de hoje</button>';
+    $('usar-sugestao').addEventListener('click', () => { estado.minimoManual = false; aplicarSugestao(); });
+  }
+  $('dias').addEventListener('input', ev => {
+    if (!ev.target.id.startsWith('mi-')) return;
+    estado.minimoManual = true;
+    mostrarMinimoManual();
+  });
+  function atualizaFechados() {
+    for (let i = 0; i < 7; i++) {
+      const aberto = $(`ab-${i}`).checked;
+      $(`linha-${i}`).classList.toggle('fechado', !aberto);
+      $(`mi-${i}`).disabled = !aberto;
+      $(`fo-${i}`).disabled = !aberto;
+    }
+  }
+  $('dias').addEventListener('change', ev => {
+    atualizaFechados();
+    if (ev.target.id.startsWith('ab-') && !estado.minimoManual) aplicarSugestao();   // abrir/fechar um dia muda a operação de hoje
+  });
+  $('ramo').addEventListener('change', () => { if (!estado.minimoManual) aplicarSugestao(); });
+
+  // começa na semana da nova regra (14/12/2026) ou na próxima segunda, o que vier depois
+  function hojeDia() {
+    const h = new Date();
+    return M.diaDe(`${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`);
+  }
+  (function () {
+    const hoje = hojeDia();
+    const lei = M.diaDe('2026-12-14');
+    $('inicio').value = M.isoDe(hoje < lei ? lei : hoje + ((7 - M.diaSemana(hoje)) % 7));
+  })();
+  function fimDe(iso) {
+    const [a, m, d] = iso.split('-').map(Number);
+    return M.isoDe(Math.round(Date.UTC(a + 1, m - 1, d) / 86400000) - 1);
+  }
+
+  function lerForm() {
+    const inicio = $('inicio').value;
+    return {
+      nomes: estado.pessoas.map((p, i) => p.nome.trim() || `Funcionário ${i + 1}`),
+      sexos: estado.pessoas.map(p => p.sexo || '?'),
+      art386: art386() === true,
+      domingoCada: +$('ramo').value,
+      aberto: [0, 1, 2, 3, 4, 5, 6].map(i => $(`ab-${i}`).checked),
+      minimo: [0, 1, 2, 3, 4, 5, 6].map(i => +$(`mi-${i}`).value || 0),
+      podeFolgar: [0, 1, 2, 3, 4, 5, 6].map(i => $(`fo-${i}`).checked),
+      maxSeguidos: estado.maxSeguidos,
+      inicio,
+      fim: inicio ? fimDe(inicio) : '',
+    };
+  }
+
+  function listaMeses(ini, fim) {
+    const out = [];
+    let [a, m] = M.isoDe(ini).split('-').map(Number);
+    for (;;) {
+      const primeiro = M.diaDe(`${a}-${String(m).padStart(2, '0')}-01`);
+      if (primeiro > fim) break;
+      const [a2, m2] = m === 12 ? [a + 1, 1] : [a, m + 1];
+      const prox = M.diaDe(`${a2}-${String(m2).padStart(2, '0')}-01`);
+      out.push({ rotulo: `${MESES[m - 1]} ${a}`, a: Math.max(primeiro, ini), b: Math.min(prox - 1, fim) });
+      [a, m] = [a2, m2];
+    }
+    return out;
+  }
+
+  // ---------- montar ----------
+  function avisoForm(txt) {
+    $('aviso-form').hidden = !txt;
+    $('aviso-form').textContent = txt || '';
+    if (txt) $('aviso-form').scrollIntoView({ block: 'nearest' });   // clicou no botão fixo do celular: a mensagem fica longe
+  }
+  function montar() {
+    const a = art386();
+    avisoForm('');
+    if (a === null) {
+      $('opcoes-386').classList.add('falta');
+      avisoForm('Responda se a sua empresa se enquadra no art. 386 da CLT (item 3).');
+      return;
+    }
+    if (a === true) {
+      const semSexo = estado.pessoas.map((p, i) => (p.sexo ? -1 : i)).filter(i => i >= 0);
+      if (semSexo.length) {
+        semSexo.forEach(i => { const s = $('pessoas').querySelector(`select[data-i="${i}"]`); if (s) s.classList.add('falta'); });
+        avisoForm(`Com o art. 386, informe o sexo de cada pessoa (faltam ${semSexo.length}).`);
+        return;
+      }
+    }
+    const cfg = lerForm();
+    $('montar').disabled = true;
+    $('montar').textContent = estado.jaMontou ? 'Atualizando…' : 'Calculando…';
+    setTimeout(() => {                      // deixa o botão atualizar antes do cálculo
+      const res0 = M.montar(cfg, estado.semente);
+      const eq = { hoje: cfg.nomes.length, faltaH: null, faltaM: null, contratadas: 0, sobra: null, motivo: null, semSaida: false,
+        minimoIntocado: !estado.minimoManual };
+      let res = res0;
+      if (!res0.ok) {
+        // quantas contratações a regra pede; com o art. 386, o sexo das contratações muda a conta
+        eq.faltaH = M.faltam(cfg, 'M');
+        eq.faltaM = cfg.art386 ? M.faltam(cfg, 'F') : eq.faltaH;
+        const k = cfg.art386 ? eq.faltaM : eq.faltaH;    // monta valendo para qualquer contratação
+        if (k === null) eq.semSaida = true;
+        else {
+          const nomes = cfg.nomes.concat(Array.from({ length: k }, (_, i) => `Contratação ${i + 1}`));
+          const sexos = cfg.sexos.concat(Array(k).fill('?'));
+          res = M.montar(Object.assign({}, cfg, { nomes, sexos }), k ? estado.semente : 0);
+          eq.contratadas = k;
+          eq.motivo = res0.erros[0];
+        }
+      } else if (!cfg.art386) {
+        const menor = M.menorEquipe(cfg);
+        if (menor !== null) eq.sobra = Math.max(0, cfg.nomes.length - menor);
+      }
+      estado.equipe = eq;
+      estado.res = res;
+      if (res.ok) {
+        estado.grade = res.grade.map(l => l.slice());
+        estado.trocas = [];
+        estado.val = M.validar(res.cfg, res.seg0, estado.grade);
+        estado.meses = listaMeses(res.ini, res.fim);
+        estado.mes = Math.min(estado.mes, estado.meses.length - 1);
+        preencherMeses();
+        // até alguém escolher: equipe pequena lê melhor uma linha por dia; grande, uma linha por pessoa
+        if (!estado.visaoEscolhida) estado.visao = res.cfg.nomes.length <= 6 ? 'dia' : 'pessoa';
+      } else {
+        estado.grade = null; estado.val = null;
+      }
+      estado.jaMontou = true;
+      $('montar').disabled = false;
+      $('montar').textContent = 'Atualizar escala';
+      render();
+      agendarSalvar(0);
+      // no celular o resultado fica embaixo do formulário: leva a pessoa até ele
+      if (window.innerWidth < 900) {
+        const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        $('status').scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+      }
+    }, 20);
+  }
+  // montar de novo joga fora as trocas feitas à mão: avisa antes
+  function podeDescartarTrocas(acao) {
+    const n = quantasTrocas();
+    return !n || window.confirm(`Você fez ${plural(n, 'troca', 'trocas')} à mão no calendário. ${acao} desfaz ${n === 1 ? 'essa troca' : 'essas trocas'}. Continuar?`);
+  }
+  (function botaoFixo() {
+    const barra = $('barra-fixa'), fixo = $('montar-fixo'), montarBt = $('montar');
+    if (!('IntersectionObserver' in window)) return;
+    let formNaTela = false, botaoNaTela = true;
+    const atualiza = () => {
+      barra.hidden = !formNaTela || botaoNaTela;
+      fixo.textContent = montarBt.textContent;
+      fixo.disabled = montarBt.disabled;
+    };
+    new IntersectionObserver(([e]) => { formNaTela = e.isIntersecting; atualiza(); }).observe($('config'));
+    new IntersectionObserver(([e]) => { botaoNaTela = e.isIntersecting; atualiza(); }).observe(montarBt);
+    new MutationObserver(atualiza).observe(montarBt, { childList: true, characterData: true, subtree: true, attributes: true });
+  })();
+  function marcarRolagem(el) {
+    const caixa = el.parentElement;
+    const atualiza = () => caixa.classList.toggle('mais-dir', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    el.addEventListener('scroll', atualiza, { passive: true });
+    if ('ResizeObserver' in window) new ResizeObserver(atualiza).observe(el);
+    new MutationObserver(atualiza).observe(el, { childList: true, subtree: true });
+    atualiza();
+  }
+  [$('previa'), $('rolagem'), ...document.querySelectorAll('.rolagem-fixa, .tabela-rolagem')].forEach(marcarRolagem);
+  $('config').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!podeDescartarTrocas('Atualizar a escala')) return;
+    estado.semente = 0; estado.maxSeguidos = 5; montar();
+  });
+  const outraOpcao = () => {
+    if (!podeDescartarTrocas('Ver outra opção de rodízio')) return;
+    estado.semente++; montar();
+  };
+  $('outra').addEventListener('click', outraOpcao);
+  $('outra2').addEventListener('click', outraOpcao);
+
+  // ---------- desenho ----------
+  function render() {
+    $('como').hidden = true;
+    $('status').hidden = false;
+    renderStatus();
+    const ok = estado.res && estado.res.ok;
+    $('proximo').hidden = !ok || estado.liberado;
+    $('pago').hidden = !ok || !estado.liberado;
+    if (!ok) return;
+    if (estado.liberado) { renderCalendario(); renderFixa(); } else renderPrevia();
+  }
+
+  // "Essa escala se repete a cada 3 semanas: a partir de 04/01 tudo volta igual."
+  function fraseCiclo(res) {
+    if (res.repete !== res.repeteMin) return `Cada pessoa repete o próprio ciclo, de ${res.repeteMin} a ${res.repete} semanas.`;
+    if (res.repete === 1) return 'Toda semana é igual: cada pessoa folga sempre nos mesmos dias.';
+    return `Essa escala se repete a cada ${res.repete} semanas: a partir de ${M.ddmm(res.seg0 + 7 * res.repete)} tudo volta igual.`;
+  }
+
+  // prévia grátis: a primeira semana da escala no formato de calendário, a seguinte borrada
+  function renderPrevia() {
+    const res = estado.res, cfg = res.cfg, N = cfg.nomes.length, eq = estado.equipe;
+    $('prox-titulo').textContent = eq && eq.contratadas
+      ? 'Contratar é só o começo. Escalar corretamente é o desafio.'
+      : 'Sua equipe dá conta. Agora o desafio é escalar certo.';
+    $('prox-texto').textContent = `Já montamos a escala ${N === 1 ? 'da sua 1 pessoa' : `das suas ${N} pessoas`}. Veja a primeira semana:`;
+    $('prox-ciclo').textContent = fraseCiclo(res);
+    // mesmos controles do calendário pago: o cliente vê que tem 12 meses e dois formatos,
+    // mas só a primeira semana aparece; o resto fica borrado
+    const mes = estado.meses[estado.mes], primeiroMes = estado.mes === 0;
+    const borrado = dia => !primeiroMes || dia - res.ini >= 7;
+    const box = $('previa');
+    box.className = 'rolagem previa' + (estado.visao === 'pessoa' ? ' pessoa' : '');
+    box.innerHTML = htmlMes(mes, { borrado, maxLinhas: primeiroMes ? 14 : 10 });
+    $('pv-aviso').textContent = primeiroMes
+      ? `Prévia grátis: a primeira semana. O resto de ${mes.rotulo.split(' ')[0]} e os outros meses abrem na versão completa.`
+      : `${mes.rotulo[0].toUpperCase() + mes.rotulo.slice(1)} abre na versão completa, com os feriados do mês marcados.`;
+    sincronizarControles();
+  }
+
+  function preencherMeses() {
+    const opcoes = estado.meses.map((m, i) => `<option value="${i}">${m.rotulo}</option>`).join('');
+    $('mes').innerHTML = opcoes;
+    $('pv-mes').innerHTML = opcoes;
+  }
+  function sincronizarControles() {
+    const ultimo = estado.meses.length - 1;
+    [['mes', 'mes-ant', 'mes-prox'], ['pv-mes', 'pv-ant', 'pv-prox']].forEach(([sel, ant, prox]) => {
+      $(sel).value = String(estado.mes);
+      $(ant).disabled = estado.mes === 0;
+      $(prox).disabled = estado.mes === ultimo;
+    });
+    document.querySelectorAll('.alterna button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.visao === estado.visao)));
+  }
+
+  function mediaPorDia() {
+    const soma = Array(7).fill(0), qtd = Array(7).fill(0);
+    estado.val.cobertura.forEach((n, k) => { if (n !== null) { soma[k % 7] += n; qtd[k % 7]++; } });
+    return M.DIAS.map((d, i) => qtd[i]
+      ? `<span class="chip">${d} <b>${(soma[i] / qtd[i]).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</b></span>`
+      : `<span class="chip">${d} <b>fechado</b></span>`).join('');
+  }
+
+  // placar: hoje · a regra pede · faltam (ou dá conta / sobra)
+  function placar() {
+    const eq = estado.equipe;
+    if (!eq) return '';
+    const pede = eq.hoje + eq.contratadas - (eq.sobra || 0);
+    const falta = n => (n === 1 ? 'Falta 1 pessoa' : `Faltam ${n} pessoas`);
+    let terceiro;
+    if (eq.contratadas) {
+      const faixa = eq.faltaH !== null && eq.faltaH !== eq.faltaM ? `${eq.faltaH} a ${eq.faltaM}` : String(eq.contratadas);
+      terceiro = `<div class="falta-gente"><span>${faixa === '1' ? 'Falta' : 'Faltam'}</span><b>${faixa}</b></div>`;
+    } else if (eq.sobra) terceiro = `<div class="da-conta"><span>Sobra</span><b>${eq.sobra}</b></div>`;
+    else terceiro = '<div class="da-conta"><span>Resultado</span><b>Dá conta</b></div>';
+    const pedeTxt = eq.contratadas && eq.faltaH !== null && eq.faltaH !== eq.faltaM ? `${eq.hoje + eq.faltaH} a ${pede}` : String(pede);
+    let nota = '';
+    if (eq.contratadas) {
+      nota = eq.faltaH !== null && eq.faltaH !== eq.faltaM
+        ? `${falta(eq.faltaH)} se contratar homens; ${eq.faltaM} se contratar mulheres. ` +
+          `A escala abaixo já inclui ${plural(eq.contratadas, 'contratação', 'contratações')}, montadas para valer qualquer que seja o sexo.`
+        : `A escala abaixo já inclui ${plural(eq.contratadas, 'contratação', 'contratações')} ("Contratação 1"…).`;
+      if (eq.motivo) nota += ` Por que falta gente: ${eq.motivo.texto}`;
+    } else if (eq.sobra) {
+      nota = `Dá para fazer com ${plural(pede, 'pessoa', 'pessoas')}. A sobra ajuda a cobrir férias e atestados.`;
+    }
+    // mínimo ainda na operação de hoje: o resultado responde "quanto a regra nova custa para manter o que tenho"
+    const intocado = eq.minimoIntocado
+      ? '<div class="dimensao"><p>' + (eq.contratadas
+        ? `<b>Para manter a sua operação de hoje no 5x2, ${falta(eq.contratadas).toLowerCase()}.</b> `
+        : '<b>Sua equipe já dá conta da operação de hoje no 5x2.</b> ') +
+        'A conta parte do que você tem hoje no 6x1. Se a operação for diferente, ajuste os mínimos (item 2) e clique em Atualizar escala.</p></div>'
+      : '';
+    return `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>A regra pede</span><b>${pedeTxt}</b></div>${terceiro}</div>` +
+      intocado + (nota ? `<p class="nota">${esc(nota)}</p>` : '') +
+      (eq.contratadas ? '<p class="nota">A conta não inclui férias e atestados: no mês em que alguém se afasta, a escala precisa de outro arranjo ou de um temporário.</p>' : '');
+  }
+
+  function renderStatus() {
+    const res = estado.res, el = $('status');
+    el.className = 'status';
+    if (!res) return;
+    if (!res.ok) {
+      el.classList.add('ruim');
+      const e = res.erros[0];
+      const semSaida = estado.equipe && estado.equipe.semSaida;
+      el.innerHTML = `<h2>${esc(e.titulo)}</h2><p>${esc(e.texto)}</p>` +
+        (semSaida ? '<p class="nota">Contratar mais gente não resolve: o problema está nos dias de folga ou no limite de dias seguidos.</p>' : '') +
+        (e.sugestoes.length ? `<p><b>Como resolver:</b></p><ul class="sugestoes">${e.sugestoes.map((s, i) => typeof s === 'string'
+          ? `<li>${esc(s)}</li>`
+          : `<li>${esc(s.texto)} <button type="button" class="botao pequeno" data-ajuste="${i}">${esc(s.botao)}</button></li>`).join('')}</ul>` : '');
+      el.querySelectorAll('[data-ajuste]').forEach(b => b.addEventListener('click', () => {
+        const aj = e.sugestoes[+b.dataset.ajuste].ajuste;
+        if (aj.maxSeguidos) estado.maxSeguidos = aj.maxSeguidos;
+        estado.semente = 0; montar();
+      }));
+      return;
+    }
+    const cfg = res.cfg, val = estado.val, N = cfg.nomes.length, eq = estado.equipe;
+    const maior = Math.max(...val.porPessoa.map(p => p.maior));
+    const tipos = new Set(val.problemas.map(p => p.tipo));
+    const checks = [
+      [!tipos.has('semana'), '2 folgas em todas as semanas'],
+      [!tipos.has('seguidos'), `No máximo ${maior} dias seguidos de trabalho` + (cfg.maxSeguidos === 6 ? ' (a lei permite até 6)' : '')],
+      [!tipos.has('cobertura'), 'Mínimo de pessoas respeitado em todos os dias'],
+    ];
+    if (cfg.aberto[6]) {
+      const Ss = new Set(val.porPessoa.map(p => p.regraDomingo));
+      const regra = Ss.size > 1 ? `mulheres em domingos alternados; demais, pelo menos a cada ${cfg.domingoCada} semanas`
+        : Ss.has(2) ? 'folga em domingos alternados' : `folga pelo menos a cada ${[...Ss][0]} semanas`;
+      checks.push([!tipos.has('domingo'), 'Domingo: ' + regra]);
+    }
+    const n = val.problemas.length, na = (val.avisos || []).length;
+    if (n || na) el.classList.add('atencao');
+    const contr = eq && eq.contratadas ? ` (${eq.hoje} de hoje + ${plural(eq.contratadas, 'contratação', 'contratações')})` : '';
+    const titulo = n ? `A escala tem ${plural(n, 'problema', 'problemas')}` : `Escala pronta para ${plural(N, 'pessoa', 'pessoas')}${contr}`;
+    const repete = res.repete !== res.repeteMin ? 'Cada pessoa repete o próprio ciclo'
+      : res.repete === 1 ? 'Toda semana é igual' : `Se repete a cada ${plural(res.repete, 'semana', 'semanas')}`;
+    const sub = n
+      ? 'Você trocou folgas no calendário. As células marcadas mostram onde ajustar.'
+      : `${repete} · começa em ${M.ddmm(res.ini)} · conferida nos 12 meses`;
+    el.innerHTML = `<h2>${titulo}</h2>` + placar() + `<p>${sub}</p><ul class="checks">${checks.map(([ok, t]) =>
+      `<li class="${ok ? '' : 'nao'}">${esc(t)}</li>`).join('')}</ul>` +
+      `<div class="cobertura"><span class="rot">Gente trabalhando por dia:</span>${mediaPorDia()}</div>` +
+      (n ? `<ul class="problemas">${val.problemas.slice(0, 30).map(p => `<li>${esc(p.texto)}</li>`).join('')}${n > 30 ? `<li>e mais ${n - 30}…</li>` : ''}</ul>` : '') +
+      (na ? `<div class="avisos"><b>${na === 1 ? 'Confira' : `Confira (${na})`}</b><ul>${val.avisos.slice(0, 15).map(a => `<li>${esc(a.texto)}</li>`).join('')}` +
+        `${na > 15 ? `<li>e mais ${na - 15}…</li>` : ''}</ul></div>` : '');
+  }
+
+  function renderFixa() {
+    const res = estado.res, cfg = res.cfg, P = res.repete, uniforme = res.repete === res.repeteMin;
+    $('fixa-titulo').textContent = uniforme
+      ? `Escala fixa · se repete a cada ${plural(P, 'semana', 'semanas')}`
+      : `Escala fixa · cada pessoa repete o próprio ciclo (${res.repeteMin} a ${P} semanas)`;
+    $('fixa-sub').textContent = `Dias de folga de cada pessoa. A semana 1 começa na segunda ${M.ddmm(res.seg0)}; ` +
+      'quando a linha da pessoa acaba, ela volta para a semana 1. Vale até alguém entrar ou sair da equipe.';
+    let html = '<thead><tr><th class="nome">Pessoa</th>' +
+      Array.from({ length: P }, (_, s) => `<th>Semana ${s + 1}<small>${M.ddmm(res.seg0 + 7 * s)}</small></th>`).join('') +
+      '<th>&nbsp;</th></tr></thead><tbody>';
+    res.rodizio.forEach((r, e) => {
+      html += `<tr><th class="nome">${esc(cfg.nomes[e])}</th>`;
+      for (let s = 0; s <= P; s++) {
+        if (s < r.periodo) html += `<td><span>${r.semanas[s].map(d => M.DIAS[d]).join(' + ')}</span></td>`;
+        else if (s === r.periodo) html += '<td class="repete">↺ volta à semana 1</td>';
+        else html += '<td></td>';
+      }
+      html += '</tr>';
+    });
+    $('fixa').innerHTML = html + '</tbody>';
+  }
+
+  function celula(e, k, extra) {
+    const v = estado.grade[e][k];
+    if (v === null) return `<td class="c ${extra}"><span class="v">—</span></td>`;
+    const m = estado.val.marcas[e][k];
+    const cls = ['v', v, m & 1 ? 'm1' : '', m & 2 ? 'm2' : '', m & 4 ? 'm4' : '', m & 8 ? 'm8' : ''].join(' ');
+    const txt = estado.visao === 'dia' ? PALAVRA[v] : v === 'T' ? '·' : v;
+    return `<td class="c ${extra}"><span class="${cls}" data-e="${e}" data-k="${k}" title="${esc(estado.res.cfg.nomes[e])}: ${PALAVRA[v]}">${txt}</span></td>`;
+  }
+  function cobertura(k, d) {
+    const n = estado.val.cobertura[k];
+    if (n === null) return '<span class="cob">—</span>';
+    const cfg = estado.res.cfg, N = cfg.nomes.length;
+    const cls = estado.val.faltaGente[k] ? 'falta' : n === 1 && N > 1 ? 'um' : n === N ? 'cheio' : '';
+    return `<span class="cob ${cls}" title="mínimo ${cfg.minimo[d]}">${n}</span>`;
+  }
+
+  // Tabela de um mês, usada pelo calendário pago e pela prévia. Na prévia, `borrado(dia)` esconde
+  // o que não é grátis e `maxLinhas` encurta a versão "uma linha por dia".
+  function htmlMes(mes, opc) {
+    const res = estado.res, cfg = res.cfg, N = cfg.nomes.length;
+    const borrado = opc.borrado || (() => false), edit = opc.editavel ? ' editavel' : '';
+    const fer = {};
+    res.feriados.forEach(f => { fer[f.dia] = f.nome; });
+    const dias = [];
+    for (let dia = mes.a; dia <= mes.b; dia++) {
+      if (estado.visao === 'dia' && opc.maxLinhas && dias.length >= opc.maxLinhas) break;
+      dias.push({ dia, k: dia - res.seg0, b: borrado(dia) });
+    }
+    let html = '';
+    if (estado.visao === 'dia') {
+      html += `<table class="escala dia${edit}"><thead><tr><th class="fixa1">Data</th><th class="fixa2">Dia</th>` +
+        cfg.nomes.map(n => `<th>${esc(n)}</th>`).join('') + '<th>Trabalhando</th></tr></thead><tbody>';
+      dias.forEach(({ dia, k, b }) => {
+        const d = k % 7;
+        const f = fer[dia] ? ` class="feriado" title="Feriado: ${esc(fer[dia])}"` : '';
+        html += `<tr class="${d === 6 ? 'dom fimsem' : ''}${b ? ' bloq' : ''}"><th class="fixa1"><span${f}>${M.ddmm(dia)}</span></th><th class="fixa2">` +
+          `<span class="longo">${DIA_NOME[d]}${fer[dia] ? ' · feriado' : ''}</span><span class="curto">${M.DIAS[d]}</span></th>`;
+        for (let e = 0; e < N; e++) html += celula(e, k, '');
+        html += `<td>${cobertura(k, d)}</td></tr>`;
+      });
+      return html + '</tbody></table>';
+    }
+    const colCls = ({ k, b }) => (k % 7 === 6 ? 'dom fimsem-col' : '') + (b ? ' bloq' : '');
+    // dia com gente de menos: a data no topo também fica vermelha, porque a linha "Trabalhando"
+    // fica no fim da tabela e numa equipe grande ninguém a vê
+    const falta = x => (!x.b && estado.val.faltaGente[x.k] ? ' falta-col' : '');
+    html += `<table class="escala${edit}"><thead><tr><th class="fixa1">Pessoa</th>` +
+      dias.map(x => `<th class="${colCls(x)}${falta(x)}">${M.DIAS[x.k % 7]}</th>`).join('') + '</tr><tr><th class="fixa1"></th>' +
+      dias.map(x => `<th class="${colCls(x)}${fer[x.dia] ? ' feriado' : ''}${falta(x)}" title="${fer[x.dia] ? `Feriado: ${esc(fer[x.dia])}` : ''}${falta(x) ? ' Gente de menos neste dia' : ''}">${M.ddmm(x.dia).slice(0, 2)}</th>`).join('') +
+      '</tr></thead><tbody>';
+    for (let e = 0; e < N; e++) {
+      html += `<tr><th class="fixa1">${esc(cfg.nomes[e])}</th>` + dias.map(x => celula(e, x.k, colCls(x))).join('') + '</tr>';
+    }
+    html += '<tr><th class="fixa1">Trabalhando</th>' + dias.map(x => `<td class="${colCls(x)}">${cobertura(x.k, x.k % 7)}</td>`).join('') + '</tr>';
+    return html + '</tbody></table>';
+  }
+
+  function renderCalendario() {
+    const res = estado.res, cfg = res.cfg, mes = estado.meses[estado.mes];
+    sincronizarControles();
+    const rol = $('rolagem');
+    rol.className = 'rolagem' + (estado.visao === 'pessoa' ? ' pessoa' : '');
+    rol.innerHTML = htmlMes(mes, { editavel: true });
+    atualizarTrocas();
+    const ferMes = res.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
+    $('feriados-mes').textContent = ferMes.length
+      ? `Feriados em ${mes.rotulo}: ` + ferMes.map(f => `${M.ddmm(f.dia)} (${M.DIAS[M.diaSemana(f.dia)]}) ${f.nome}`).join(' · ') +
+        '. Se abrir, pague em dobro ou dê outra folga.'
+      : `Nenhum feriado nacional em ${mes.rotulo}.`;
+    // quem sai na imagem do WhatsApp: a equipe toda ou uma pessoa (mantém a escolha ao trocar de mês)
+    const quem = $('img-quem'), atual = quem.value || 'todos';
+    quem.innerHTML = '<option value="todos">Equipe toda</option>' + cfg.nomes.map((n, e) => `<option value="${e}">${esc(n)}</option>`).join('');
+    quem.value = [...quem.options].some(o => o.value === atual) ? atual : 'todos';
+    $('resumo').innerHTML = '<thead><tr><th>Pessoa</th><th>Folgas</th><th>Domingos trabalhados</th><th>Maior sequência</th></tr></thead><tbody>' +
+      cfg.nomes.map((n, e) => {
+        const p = estado.val.porPessoa[e];
+        return `<tr><td>${esc(n)}</td><td>${p.folgas}</td><td>${cfg.aberto[6] ? p.domTrab : '—'}</td><td>${p.maior} dias</td></tr>`;
+      }).join('') + '</tbody>';
+  }
+
+  // ---------- interações do resultado ----------
+  // os controles da prévia e do calendário pago mexem no mesmo estado: o formato e o mês escolhidos
+  // na prévia continuam valendo depois de pagar
+  const redesenharMes = () => (estado.liberado ? renderCalendario() : renderPrevia());
+  document.querySelectorAll('.alterna button').forEach(b => b.addEventListener('click', () => {
+    estado.visao = b.dataset.visao;
+    estado.visaoEscolhida = true;
+    redesenharMes();
+  }));
+  const irMes = i => { estado.mes = Math.max(0, Math.min(estado.meses.length - 1, i)); redesenharMes(); };
+  $('mes').addEventListener('change', () => irMes(+$('mes').value));
+  $('mes-ant').addEventListener('click', () => irMes(estado.mes - 1));
+  $('mes-prox').addEventListener('click', () => irMes(estado.mes + 1));
+  $('pv-mes').addEventListener('change', () => irMes(+$('pv-mes').value));
+  $('pv-ant').addEventListener('click', () => irMes(estado.mes - 1));
+  $('pv-prox').addEventListener('click', () => irMes(estado.mes + 1));
+  // trocas de um dia: cada clique inverte folga/trabalho; a lista permite desfazer a última
+  function quantasTrocas() {
+    if (!estado.res || !estado.res.ok || !estado.grade) return 0;
+    let n = 0;
+    estado.grade.forEach((linha, e) => linha.forEach((v, k) => { if (v !== estado.res.grade[e][k]) n++; }));
+    return n;
+  }
+  function atualizarTrocas() {
+    const n = quantasTrocas();
+    $('trocas').hidden = !n;
+    const v = estado.val || {}, np = (v.problemas || []).length, na = (v.avisos || []).length;
+    // no celular o resumo com a lista fica uma tela acima: o primeiro problema aparece aqui, junto do calendário
+    const situacao = np ? `<b class="ruim">${plural(np, 'problema', 'problemas')}: ${esc(v.problemas[0].texto)}${np > 1 ? ' (lista completa no resumo acima)' : ''}</b>`
+      : na ? `<b class="atento">Confira: ${esc(v.avisos[0].texto)}</b>` : 'Tudo conferido.';
+    $('trocas-texto').innerHTML = `${plural(n, 'troca feita', 'trocas feitas')} à mão. ${situacao}`;
+    $('desfazer').hidden = !(estado.trocas && estado.trocas.length);
+  }
+  function aplicarTroca(e, k) {
+    estado.grade[e][k] = estado.grade[e][k] === 'T' ? 'F' : 'T';
+    estado.val = M.validar(estado.res.cfg, estado.res.seg0, estado.grade);
+    const rol = $('rolagem'), x = rol.scrollLeft, y = rol.scrollTop;
+    renderStatus(); renderCalendario();
+    rol.scrollLeft = x; rol.scrollTop = y;
+    agendarSalvar();
+  }
+  $('desfazer').addEventListener('click', () => {
+    const t = (estado.trocas || []).pop();
+    if (t) aplicarTroca(t.e, t.k);
+  });
+  $('desfazer-todas').addEventListener('click', () => {
+    estado.grade = estado.res.grade.map(l => l.slice());
+    estado.trocas = [];
+    estado.val = M.validar(estado.res.cfg, estado.res.seg0, estado.grade);
+    renderStatus(); renderCalendario();
+    agendarSalvar();
+  });
+  $('rolagem').addEventListener('click', ev => {
+    const alvo = ev.target.closest('[data-e]');
+    if (!alvo) return;
+    const e = +alvo.dataset.e, k = +alvo.dataset.k, v = estado.grade[e][k];
+    if (v !== 'T' && v !== 'F') return;
+    (estado.trocas = estado.trocas || []).push({ e, k });
+    aplicarTroca(e, k);
+  });
+
+  // ---------- conta, pagamento e escala salva ----------
+  async function api(metodo, url, corpo) {
+    const r = await fetch(url, {
+      method: metodo, credentials: 'same-origin',
+      headers: corpo === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    });
+    let j = null;
+    try { j = await r.json(); } catch (_) { /* resposta sem corpo */ }
+    if (!r.ok) {
+      const e = new Error((j && j.detail) || 'Algo deu errado. Tente de novo.');
+      e.status = r.status;
+      throw e;
+    }
+    return j;
+  }
+  const espera = ms => new Promise(r => setTimeout(r, ms));
+
+  function avisoPag(texto, tipo, botao) {
+    const el = $('aviso-pagamento');
+    el.hidden = !texto;
+    el.className = 'aviso-pag ' + (tipo || '');
+    el.innerHTML = texto ? `<span>${esc(texto)}</span>` : '';
+    if (texto && botao) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'botao pequeno'; b.textContent = botao.texto;
+      b.addEventListener('click', botao.acao);
+      el.appendChild(b);
+    }
+  }
+
+  function renderTopo() {
+    const box = $('conta-topo');
+    if (!SERVIDOR) { box.innerHTML = '<span class="selo">Protótipo</span>'; return; }
+    const eu = estado.eu;
+    box.innerHTML = eu
+      ? `<span class="email" title="${esc(eu.email)}">${esc(eu.email)}</span>` +
+        (eu.ativo ? '<span class="chip">acesso <b>ilimitado</b></span>' : '') +
+        '<button type="button" class="botao pequeno" id="btn-conta">Minha conta</button>'
+      : '<button type="button" class="botao pequeno" id="btn-entrar">Entrar</button>';
+    const b1 = $('btn-entrar'), b2 = $('btn-conta');
+    if (b1) b1.addEventListener('click', () => abrirConta('entrar'));
+    if (b2) b2.addEventListener('click', () => abrirConta('conta'));
+  }
+
+  // o que dá para restaurar depois: formulário, escala montada e trocas feitas à mão
+  function snapshot() {
+    return {
+      versao: 1,
+      form: {
+        pessoas: estado.pessoas.map(p => Object.assign({}, p)), ramo: $('ramo').value, art386: art386(),
+        aberto: [0, 1, 2, 3, 4, 5, 6].map(i => $(`ab-${i}`).checked),
+        minimo: [0, 1, 2, 3, 4, 5, 6].map(i => $(`mi-${i}`).value),
+        podeFolgar: [0, 1, 2, 3, 4, 5, 6].map(i => $(`fo-${i}`).checked),
+        inicio: $('inicio').value, maxSeguidos: estado.maxSeguidos,
+        minimoManual: !!estado.minimoManual,      // na volta: mínimo editado fica; sugestão volta a acompanhar a equipe
+      },
+      semente: estado.semente, res: estado.res, grade: estado.grade, equipe: estado.equipe, mes: estado.mes, visao: estado.visao,
+    };
+  }
+  function restaurar(s) {
+    const f = s.form;
+    estado.pessoas = f.pessoas;
+    $('ramo').value = f.ramo;
+    document.querySelectorAll('input[name="art386"]').forEach(r => { r.checked = r.value === (f.art386 ? 'sim' : 'nao'); });
+    for (let i = 0; i < 7; i++) {
+      $(`ab-${i}`).checked = f.aberto[i]; $(`mi-${i}`).value = f.minimo[i]; $(`fo-${i}`).checked = f.podeFolgar[i];
+    }
+    $('inicio').value = f.inicio;
+    estado.maxSeguidos = f.maxSeguidos || 5;
+    estado.semente = s.semente || 0;
+    // só fica fixo o mínimo que a pessoa editou; sugestão (ou escala salva antes desta marca) volta a
+    // acompanhar o tamanho da equipe
+    estado.minimoManual = f.minimoManual === true;
+    renderPessoas(); atualizaFechados();
+    if (!s.res || !s.res.ok) return;
+    estado.res = s.res; estado.grade = s.grade; estado.equipe = s.equipe; estado.visao = s.visao || 'dia';
+    estado.trocas = [];                  // trocas antigas continuam na grade; "voltar à original" ainda funciona
+    estado.val = M.validar(s.res.cfg, s.res.seg0, s.grade);
+    estado.meses = listaMeses(s.res.ini, s.res.fim);
+    estado.mes = Math.min(s.mes || 0, estado.meses.length - 1);
+    const doDia = estado.meses.findIndex(m => m.a <= hojeDia() && hojeDia() <= m.b);   // quem volta outro dia quer ver o mês de hoje
+    if (doDia >= 0) estado.mes = doDia;
+    preencherMeses();
+    estado.jaMontou = true;
+    $('montar').textContent = 'Atualizar escala';
+    $('formato').value = s.res.cfg.nomes.length <= 12 ? 'dia' : 'pessoa';
+    render();
+  }
+
+  let timerSalvar = null;
+  function agendarSalvar(ms) {
+    if (!SERVIDOR || !estado.eu || !estado.eu.ativo || !estado.liberado || !estado.res || !estado.res.ok) return;
+    clearTimeout(timerSalvar);
+    timerSalvar = setTimeout(async () => {
+      try {
+        await api('PUT', '/api/escala', snapshot());
+        $('salvo').hidden = false;
+        $('salvo').textContent = `Escala salva na sua conta às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`;
+      } catch (e) {
+        $('salvo').hidden = false;
+        $('salvo').textContent = 'Não consegui salvar a escala na sua conta agora. Ela continua aqui na tela.';
+      }
+    }, ms === undefined ? 1500 : ms);
+  }
+
+  function liberarNaTela() {
+    estado.liberado = true;
+    if (!estado.res || !estado.res.ok) return;       // ainda sem escala: a próxima já sai liberada
+    $('formato').value = estado.res.cfg.nomes.length <= 12 ? 'dia' : 'pessoa';
+    render();
+    agendarSalvar(0);
+  }
+
+  async function comprar() {
+    if (estado.eu && estado.eu.ativo) { liberarNaTela(); return; }
+    const b = $('liberar');
+    b.disabled = true; b.textContent = 'Abrindo o pagamento…';
+    try {
+      const r = await api('POST', '/api/pedido');
+      // a página sai para o Mercado Pago: guarda a escala para mostrar a mesma na volta
+      try { localStorage.setItem(CHAVE_PENDENTE, JSON.stringify({ pedido: r.pedido, snap: snapshot() })); } catch (_) { /* sem armazenamento local */ }
+      location.href = r.url;
+    } catch (e) {
+      avisoPag(e.message, 'erro');
+      b.disabled = false; b.textContent = 'Liberar minha escala completa';
+    }
+  }
+
+  async function voltaDoPagamento(pid) {
+    let pend = null;
+    try { pend = JSON.parse(localStorage.getItem(CHAVE_PENDENTE) || 'null'); } catch (_) { /* nada guardado */ }
+    if (pend && pend.pedido === pid && pend.snap && !estado.res) restaurar(pend.snap);
+    avisoPag('Confirmando o seu pagamento com o Mercado Pago…', 'espera');
+    for (let i = 0; i < 40; i++) {
+      let r = null;
+      try { r = await api('GET', `/api/pedido/${encodeURIComponent(pid)}`); } catch (e) {
+        if (e.status === 401) {
+          avisoPag('Entre na sua conta para concluir a liberação.', 'erro');
+          abrirConta('entrar', () => voltaDoPagamento(pid));
+          return;
+        }
+        if (e.status === 404) { avisoPag('Não encontramos esse pagamento na sua conta.', 'erro'); return; }
+      }
+      if (r) {
+        estado.eu = Object.assign({}, estado.eu, r, { logado: true });
+        renderTopo();
+        if (r.status === 'aprovado' || r.ativo) {
+          try { localStorage.removeItem(CHAVE_PENDENTE); } catch (_) { /* sem armazenamento local */ }
+          history.replaceState(null, '', location.pathname);
+          avisoPag('Pagamento confirmado. Seu acesso é ilimitado: monte e ajuste a escala quantas vezes quiser.', 'ok');
+          liberarNaTela();
+          return;
+        }
+        if (r.status === 'recusado') {
+          avisoPag('O pagamento foi recusado. Tente de novo com outro cartão ou com Pix.', 'erro',
+            { texto: 'Tentar de novo', acao: comprar });
+          return;
+        }
+      }
+      await espera(3000);
+    }
+    avisoPag('Ainda não recebemos a confirmação. No Pix pode levar alguns segundos.', 'espera',
+      { texto: 'Verificar de novo', acao: () => voltaDoPagamento(pid) });
+  }
+
+  async function depoisDeEntrar() {
+    renderTopo();
+    if (estado.eu.ativo) {
+      // aparelho novo: traz a escala salva; com uma escala já na tela, ela passa a ser a salva
+      if (!estado.res || !estado.res.ok) {
+        try {
+          const s = await api('GET', '/api/escala');
+          if (s.dados && s.dados.res) { estado.liberado = true; restaurar(s.dados); irParaEscala(); return; }
+        } catch (_) { /* sem escala salva */ }
+      }
+      liberarNaTela();
+      irParaEscala();
+    }
+  }
+  // no celular a escala fica embaixo do formulário: quem já pagou e volta não precisa rolar 3 telas até ela
+  function irParaEscala() {
+    if (window.innerWidth >= 900 || $('pago').hidden) return;
+    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('pago').scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+  }
+
+  // ----- janela de conta: criar, entrar, esqueci, redefinir, minha conta -----
+  let aposConta = null;
+  const VISTAS = {
+    criar: {
+      titulo: 'Crie sua conta',
+      sub: 'Sua escala fica guardada na conta: volte quando quiser, em qualquer aparelho.',
+      html: `<form class="campos" data-acao="criar">
+        <label>E-mail <input type="email" name="email" autocomplete="email" required></label>
+        <label>Crie uma senha (mínimo 8 caracteres) <input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
+        <label class="mostrar"><input type="checkbox" data-mostrar> mostrar senha</label>
+        <button class="botao principal" type="submit">Criar conta e continuar</button>
+      </form>
+      <div class="links"><button type="button" class="botao-link" data-vista="entrar">Já tenho conta</button></div>`,
+    },
+    entrar: {
+      titulo: 'Entrar',
+      sub: 'Use o e-mail e a senha que você criou.',
+      html: `<form class="campos" data-acao="entrar">
+        <label>E-mail <input type="email" name="email" autocomplete="email" required></label>
+        <label>Senha <input type="password" name="senha" autocomplete="current-password" required></label>
+        <label class="mostrar"><input type="checkbox" data-mostrar> mostrar senha</label>
+        <button class="botao principal" type="submit">Entrar</button>
+      </form>
+      <div class="links"><button type="button" class="botao-link" data-vista="esqueci">Esqueci minha senha</button>
+        <button type="button" class="botao-link" data-vista="criar">Criar conta</button></div>`,
+    },
+    esqueci: {
+      titulo: 'Esqueci minha senha',
+      sub: 'Mandamos um código de 6 números para o e-mail da sua conta.',
+      html: `<form class="campos" data-acao="esqueci">
+        <label>E-mail da conta <input type="email" name="email" autocomplete="email" required></label>
+        <button class="botao principal" type="submit">Mandar código por e-mail</button>
+      </form>
+      <div class="links"><button type="button" class="botao-link" data-vista="entrar">Voltar para entrar</button></div>`,
+    },
+    redefinir: {
+      titulo: 'Criar nova senha',
+      sub: 'Digite o código que chegou no seu e-mail. Ele vale por 15 minutos.',
+      html: `<form class="campos" data-acao="redefinir">
+        <label>E-mail da conta <input type="email" name="email" autocomplete="email" required></label>
+        <label>Código <input type="text" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+        <label>Nova senha (mínimo 8 caracteres) <input type="password" name="nova" autocomplete="new-password" minlength="8" required></label>
+        <label class="mostrar"><input type="checkbox" data-mostrar> mostrar senha</label>
+        <button class="botao principal" type="submit">Salvar nova senha e entrar</button>
+      </form>
+      <div class="links"><button type="button" class="botao-link" data-vista="esqueci">Mandar outro código</button></div>`,
+    },
+    conta: {
+      titulo: 'Minha conta',
+      sub: '',
+      html: `<form class="campos" data-acao="trocar">
+        <label>Senha atual <input type="password" name="atual" autocomplete="current-password" required></label>
+        <label>Nova senha (mínimo 8 caracteres) <input type="password" name="nova" autocomplete="new-password" minlength="8" required></label>
+        <button class="botao" type="submit">Trocar senha</button>
+      </form>
+      <div class="links"><button type="button" class="botao-link" data-sair>Sair da conta</button></div>`,
+    },
+  };
+  let emailDigitado = '';
+
+  function mostrarVista(nome, aviso) {
+    const v = VISTAS[nome];
+    $('dlg-titulo').textContent = v.titulo;
+    let sub = v.sub;
+    if (nome === 'conta' && estado.eu) {
+      sub = `${estado.eu.email} · ` + (estado.eu.ativo ? 'acesso ilimitado' : 'sem acesso ativo');
+    }
+    $('dlg-sub').textContent = aviso || sub;
+    $('dlg-corpo').innerHTML = v.html;
+    $('dlg-erro').hidden = true;
+    const email = $('dlg-corpo').querySelector('input[name="email"]');
+    if (email && emailDigitado) email.value = emailDigitado;
+    const primeiro = $('dlg-corpo').querySelector(email && emailDigitado ? 'input:not([name="email"])' : 'input');
+    // não rouba o foco de quem já tocou num campo (senão o que se digita cai no e-mail)
+    if (primeiro) setTimeout(() => { if (!$('dlg-corpo').contains(document.activeElement)) primeiro.focus(); }, 30);
+  }
+  function abrirConta(nome, depois) {
+    aposConta = depois || null;
+    mostrarVista(nome, nome === 'criar' && depois ? 'Crie sua conta para liberar e guardar a sua escala. Depois você paga com Pix ou cartão.' : '');
+    const d = $('dlg-conta');
+    if (!d.open) d.showModal();
+  }
+  $('dlg-corpo').addEventListener('click', async ev => {
+    const vista = ev.target.closest('[data-vista]');
+    if (vista) {
+      const email = $('dlg-corpo').querySelector('input[name="email"]');
+      if (email) emailDigitado = email.value;
+      mostrarVista(vista.dataset.vista);
+      return;
+    }
+    if (ev.target.closest('[data-sair]')) {
+      try { await api('POST', '/api/sair'); } catch (_) { /* sai do mesmo jeito */ }
+      location.href = location.pathname;
+    }
+  });
+  $('dlg-corpo').addEventListener('change', ev => {
+    if (ev.target.matches('[data-mostrar]')) {
+      $('dlg-corpo').querySelectorAll('input[name="senha"], input[name="nova"], input[name="atual"]')
+        .forEach(i => { i.type = ev.target.checked ? 'text' : 'password'; });
+    }
+  });
+  $('dlg-corpo').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const form = ev.target, dados = Object.fromEntries(new FormData(form).entries());
+    const botao = form.querySelector('button[type="submit"]'), texto = botao.textContent;
+    botao.disabled = true; botao.textContent = 'Aguarde…';
+    $('dlg-erro').hidden = true;
+    try {
+      const acao = form.dataset.acao;
+      if (dados.email) emailDigitado = dados.email;
+      if (acao === 'esqueci') {
+        const r = await api('POST', '/api/senha/esqueci', { email: dados.email });
+        mostrarVista('redefinir', r.mensagem);
+        return;
+      }
+      if (acao === 'trocar') {
+        await api('POST', '/api/senha/trocar', { atual: dados.atual, nova: dados.nova });
+        mostrarVista('conta', 'Senha trocada. Os outros aparelhos vão pedir a senha nova.');
+        return;
+      }
+      const rota = { criar: '/api/conta', entrar: '/api/entrar', redefinir: '/api/senha/redefinir' }[acao];
+      estado.eu = Object.assign({ logado: true }, await api('POST', rota, dados));
+      $('dlg-conta').close();
+      const depois = aposConta;
+      aposConta = null;
+      if (depois) depois(); else depoisDeEntrar();
+    } catch (e) {
+      $('dlg-erro').hidden = false;
+      $('dlg-erro').textContent = e.message;
+    } finally {
+      botao.disabled = false; botao.textContent = texto;
+    }
+  });
+
+  $('liberar').addEventListener('click', () => {
+    if (!SERVIDOR) { liberarNaTela(); return; }                  // protótipo aberto direto do arquivo
+    if (!estado.eu) { abrirConta('criar', async () => { renderTopo(); await comprar(); }); return; }
+    comprar();
+  });
+  $('abrir-entrar').addEventListener('click', () => abrirConta('entrar'));
+
+  async function iniciar() {
+    renderTopo();
+    if (!SERVIDOR) return;
+    $('nota-prototipo').hidden = true;
+    $('ja-comprei').hidden = false;
+    try {
+      const eu = await api('GET', '/api/eu');
+      estado.eu = eu.logado ? eu : null;
+    } catch (_) { estado.eu = null; }
+    renderTopo();
+    const pid = new URLSearchParams(location.search).get('pedido');
+    if (pid) {
+      if (estado.eu) voltaDoPagamento(pid);
+      else abrirConta('entrar', () => voltaDoPagamento(pid));
+      return;
+    }
+    if (estado.eu && estado.eu.ativo) depoisDeEntrar();
+  }
+  $('baixar').addEventListener('click', async () => {
+    const res = estado.res;
+    $('baixar').disabled = true;
+    $('baixar').textContent = 'Gerando…';
+    try {
+      const dados = Object.assign({}, res, { grade: estado.grade });
+      const wb = window.ExportarEscala.planilha(window.ExcelJS, M, dados, $('formato').value);
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `escala_a_partir_de_${res.cfg.inicio}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } finally {
+      $('baixar').disabled = false;
+      $('baixar').textContent = 'Baixar Excel';
+    }
+  });
+  // ---------- imagem do mês para o WhatsApp ----------
+  // Desenhada num canvas na fonte de títulos (o zero da fonte do texto vem cortado), sempre no tema claro (fica legível no WhatsApp de qualquer um), em 2x para
+  // não borrar. Duas versões: a grade da equipe (o "recorte do mês") e o calendário de uma pessoa.
+  const COR_IMG = { fundo: '#ffffff', tinta: '#17231e', tinta2: '#56655e', linha: '#d6ddd8', linhaForte: '#8c9b94',
+    acento: '#0e5f52', folga: '#cdebd3', folgaTinta: '#1d6634', domingo: '#f5eedf', feriado: '#f9e1de',
+    feriadoTinta: '#a8231b', fechado: '#e5e8e6' };
+  const FT = '"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif';
+  function retArred(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function cortar(g, txt, max) {
+    if (g.measureText(txt).width <= max) return txt;
+    while (txt.length > 1 && g.measureText(txt + '…').width > max) txt = txt.slice(0, -1);
+    return txt + '…';
+  }
+  function telaImagem(W, H) {
+    const cv = document.createElement('canvas');
+    cv.width = W * 2; cv.height = H * 2;
+    const g = cv.getContext('2d');
+    g.scale(2, 2);
+    g.fillStyle = COR_IMG.fundo; g.fillRect(0, 0, W, H);
+    g.textBaseline = 'alphabetic';
+    return { cv, g };
+  }
+  function rodapeImagem(g, W, H, pad, ferMes) {
+    g.textAlign = 'left'; g.font = `600 12px ${FT}`; g.fillStyle = COR_IMG.tinta2;
+    if (ferMes.length) g.fillText(cortar(g, 'Feriados: ' + ferMes.map(f => `${M.ddmm(f.dia)} ${f.nome}`).join(' · '), W - 2 * pad - 110), pad, H - 20);
+    g.textAlign = 'right'; g.font = `800 12px ${FT}`; g.fillStyle = COR_IMG.acento;
+    g.fillText('Escala Certa', W - pad, H - 20);
+  }
+
+  // a grade do mês: uma linha por pessoa, só a folga aparece
+  function imagemEquipe(res, cfg, mes, fer, ferMes) {
+    const N = cfg.nomes.length, dias = [];
+    for (let dia = mes.a; dia <= mes.b; dia++) dias.push(dia);
+    const pad = 28, cw = 30, ch = 28, topo = 84, cab = 44, rod = 48;
+    const medida = document.createElement('canvas').getContext('2d');
+    medida.font = `600 14px ${FT}`;
+    const nw = Math.min(220, Math.max(110, ...cfg.nomes.map(n => medida.measureText(n).width + 18)));
+    const W = pad * 2 + nw + dias.length * cw, H = topo + cab + N * ch + rod;
+    const { cv, g } = telaImagem(W, H);
+    const x0 = pad + nw, y0 = topo, yFim = y0 + cab + N * ch;
+    g.textAlign = 'left'; g.fillStyle = COR_IMG.tinta; g.font = `800 24px ${FT}`;
+    g.fillText(`Escala de folgas · ${mes.rotulo}`, pad, 40);
+    g.font = `600 13px ${FT}`; g.fillStyle = COR_IMG.tinta2;
+    g.fillText('F = folga · X = fechado · em branco = trabalha', pad, 62);
+    dias.forEach((dia, i) => {               // coluna inteira de domingo e de feriado pintada
+      if (!fer[dia] && M.diaSemana(dia) !== 6) return;
+      g.fillStyle = fer[dia] ? COR_IMG.feriado : COR_IMG.domingo;
+      g.fillRect(x0 + i * cw, y0, cw, yFim - y0);
+    });
+    g.textAlign = 'center';
+    dias.forEach((dia, i) => {
+      const cx = x0 + i * cw + cw / 2;
+      g.font = `600 11px ${FT}`; g.fillStyle = COR_IMG.tinta2; g.fillText(M.DIAS[M.diaSemana(dia)], cx, y0 + 16);
+      g.font = `800 14px ${FT}`; g.fillStyle = fer[dia] ? COR_IMG.feriadoTinta : COR_IMG.tinta;
+      g.fillText(String(+M.ddmm(dia).slice(0, 2)), cx, y0 + 36);
+    });
+    g.strokeStyle = COR_IMG.linhaForte; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(pad, y0 + cab + 0.5); g.lineTo(W - pad, y0 + cab + 0.5); g.stroke();
+    for (let e = 0; e < N; e++) {
+      const y = y0 + cab + e * ch;
+      g.textAlign = 'left'; g.font = `600 14px ${FT}`; g.fillStyle = COR_IMG.tinta;
+      g.fillText(cortar(g, cfg.nomes[e], nw - 14), pad, y + ch / 2 + 5);
+      dias.forEach((dia, i) => {
+        const v = estado.grade[e][dia - res.seg0];
+        if (v !== 'F' && v !== 'X') return;
+        const x = x0 + i * cw;
+        g.fillStyle = v === 'F' ? COR_IMG.folga : COR_IMG.fechado;
+        retArred(g, x + 3, y + 3, cw - 6, ch - 6, 5); g.fill();
+        g.textAlign = 'center'; g.font = `800 13px ${FT}`;
+        g.fillStyle = v === 'F' ? COR_IMG.folgaTinta : COR_IMG.tinta2;
+        g.fillText(v, x + cw / 2, y + ch / 2 + 5);
+      });
+      g.strokeStyle = COR_IMG.linha;
+      g.beginPath(); g.moveTo(pad, y + ch + 0.5); g.lineTo(W - pad, y + ch + 0.5); g.stroke();
+    }
+    g.strokeStyle = COR_IMG.linhaForte;      // separa as semanas depois do domingo
+    dias.forEach((dia, i) => {
+      if (M.diaSemana(dia) !== 6 || i === dias.length - 1) return;
+      const x = x0 + (i + 1) * cw + 0.5;
+      g.beginPath(); g.moveTo(x, y0); g.lineTo(x, yFim); g.stroke();
+    });
+    rodapeImagem(g, W, H, pad, ferMes);
+    return cv;
+  }
+
+  // o calendário de uma pessoa: o que ela quer saber é quando folga
+  function imagemPessoa(res, cfg, mes, fer, ferMes, e) {
+    const pad = 28, cw = 96, ch = 72, gap = 6, topo = 120, cabSem = 24, rod = 48;
+    const seg1 = mes.a - M.diaSemana(mes.a);
+    const semanas = Math.ceil((mes.b - seg1 + 1) / 7);
+    const W = pad * 2 + 7 * cw + 6 * gap, H = topo + cabSem + semanas * (ch + gap) + rod;
+    const { cv, g } = telaImagem(W, H);
+    let folgas = 0, domingos = 0;
+    for (let dia = mes.a; dia <= mes.b; dia++) {
+      const v = estado.grade[e][dia - res.seg0];
+      if (v === 'F') folgas++;
+      if ((v === 'F' || v === 'X') && M.diaSemana(dia) === 6) domingos++;
+    }
+    g.textAlign = 'left'; g.fillStyle = COR_IMG.tinta; g.font = `800 26px ${FT}`;
+    g.fillText(cortar(g, cfg.nomes[e], W - 2 * pad), pad, 44);
+    g.font = `600 15px ${FT}`; g.fillStyle = COR_IMG.tinta2;
+    g.fillText(`Folgas de ${mes.rotulo}`, pad, 70);
+    g.font = `800 15px ${FT}`; g.fillStyle = COR_IMG.folgaTinta;
+    g.fillText(`${plural(folgas, 'folga', 'folgas')}` + (cfg.aberto[6] ? ` · ${plural(domingos, 'domingo de folga', 'domingos de folga')}` : ''), pad, 96);
+    g.textAlign = 'center'; g.font = `800 12px ${FT}`; g.fillStyle = COR_IMG.tinta2;
+    M.DIAS.forEach((d, i) => g.fillText(d.toUpperCase(), pad + i * (cw + gap) + cw / 2, topo + 14));
+    for (let i = 0; i < semanas * 7; i++) {
+      const dia = seg1 + i;
+      if (dia < mes.a || dia > mes.b) continue;
+      const x = pad + (i % 7) * (cw + gap), y = topo + cabSem + Math.floor(i / 7) * (ch + gap);
+      const v = estado.grade[e][dia - res.seg0], f = fer[dia];
+      g.fillStyle = v === 'F' ? COR_IMG.folga : v === 'X' ? COR_IMG.fechado : f ? COR_IMG.feriado : COR_IMG.fundo;
+      retArred(g, x, y, cw, ch, 8); g.fill();
+      if (v === 'T') { g.strokeStyle = COR_IMG.linha; g.lineWidth = 1; g.stroke(); }
+      g.textAlign = 'left'; g.font = `800 18px ${FT}`;
+      g.fillStyle = f ? COR_IMG.feriadoTinta : v === 'F' ? COR_IMG.folgaTinta : COR_IMG.tinta;
+      g.fillText(String(+M.ddmm(dia).slice(0, 2)), x + 10, y + 26);
+      const rotulo = v === 'F' ? (f ? 'Folga · feriado' : 'Folga') : v === 'X' ? 'Fechado' : f ? 'Feriado' : '';
+      if (rotulo) {
+        g.font = `800 13px ${FT}`;
+        g.fillStyle = v === 'F' ? COR_IMG.folgaTinta : v === 'X' ? COR_IMG.tinta2 : COR_IMG.feriadoTinta;
+        g.fillText(cortar(g, rotulo, cw - 18), x + 10, y + ch - 14);
+      }
+    }
+    rodapeImagem(g, W, H, pad, ferMes);
+    return cv;
+  }
+
+  function nomeArquivo(txt) {
+    return txt.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+  function avisar(msg) {
+    const aviso = $('aviso-copia');
+    aviso.hidden = false; aviso.textContent = msg;
+    setTimeout(() => { aviso.hidden = true; }, 5000);
+  }
+  $('imagem').addEventListener('click', async () => {
+    const res = estado.res, cfg = res.cfg, mes = estado.meses[estado.mes], quem = $('img-quem').value;
+    const btn = $('imagem');
+    btn.disabled = true;
+    try {
+      try {                                  // as fontes da página precisam estar carregadas antes de desenhar
+        await Promise.all([document.fonts.load(`800 26px ${FT}`), document.fonts.load(`800 14px ${FT}`), document.fonts.load(`600 14px ${FT}`)]);
+      } catch (_) { /* sem a fonte, o canvas usa a do sistema */ }
+      const fer = {};
+      res.feriados.forEach(f => { fer[f.dia] = f.nome; });
+      const ferMes = res.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
+      const todos = quem === 'todos';
+      const cv = todos ? imagemEquipe(res, cfg, mes, fer, ferMes) : imagemPessoa(res, cfg, mes, fer, ferMes, +quem);
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      const nome = `escala-${nomeArquivo(todos ? 'equipe' : cfg.nomes[+quem])}-${nomeArquivo(mes.rotulo)}.png`;
+      const arq = new File([blob], nome, { type: 'image/png' });
+      // no celular abre o "Compartilhar" (WhatsApp aparece na lista); no computador baixa a imagem,
+      // para arrastar no WhatsApp Web (a janela de compartilhar do Windows só atrapalha)
+      const celular = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      if (celular && navigator.canShare && navigator.canShare({ files: [arq] })) {
+        try {
+          await navigator.share({ files: [arq], title: `Escala de ${mes.rotulo}` });
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+        }
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = nome;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      avisar('Imagem baixada. É só anexar no WhatsApp.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('copiar').addEventListener('click', () => {
+    const res = estado.res, cfg = res.cfg, mes = estado.meses[estado.mes];
+    const linhas = [`*Escala fixa* (a semana 1 começa em ${M.ddmm(res.seg0)}; ao fim da sua linha, volte para a semana 1)`];
+    res.rodizio.forEach((r, e) => {
+      linhas.push(`*${cfg.nomes[e]}*: ` + r.semanas.map((dias, s) => `S${s + 1} ${dias.map(d => M.DIAS[d]).join('+')}`).join(' · '));
+    });
+    linhas.push('', `*Folgas em ${mes.rotulo}*`);
+    cfg.nomes.forEach((n, e) => {
+      const folgas = [];
+      for (let dia = mes.a; dia <= mes.b; dia++) {
+        if (estado.grade[e][dia - res.seg0] === 'F') folgas.push(`${M.DIAS[M.diaSemana(dia)]} ${M.ddmm(dia).slice(0, 2)}`);
+      }
+      linhas.push(`*${n}*: ${folgas.join(', ')}`);
+    });
+    const texto = linhas.join('\n');
+    const aviso = $('aviso-copia');
+    const pronto = msg => { aviso.hidden = false; aviso.textContent = msg; setTimeout(() => { aviso.hidden = true; }, 4000); };
+    navigator.clipboard.writeText(texto).then(() => pronto('Copiado: escala fixa + folgas do mês. É só colar no WhatsApp.')).catch(() => {
+      const t = document.createElement('textarea');
+      t.value = texto; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); pronto('Copiado: escala fixa + folgas do mês. É só colar no WhatsApp.'); } catch (_) { pronto('Não consegui copiar. Tente de novo.'); }
+      t.remove();
+    });
+  });
+
+  renderPessoas();
+  atualizaFechados();
+  iniciar();
+})();
+</script>
+</body>
+</html>

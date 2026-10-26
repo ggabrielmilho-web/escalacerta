@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Escala Certa">
+  <title>Escala Certa</title>
+  <rect width="512" height="512" rx="112.64" fill="#0e5f52"/>
+  <g transform="translate(25.6 179.2)">
+  <rect x="0" y="0" width="46.08" height="153.6" rx="13.82" fill="#ffffff"/>
+  <rect x="69.12" y="0" width="46.08" height="153.6" rx="13.82" fill="#ffffff"/>
+  <rect x="138.24" y="0" width="46.08" height="153.6" rx="13.82" fill="#ffffff"/>
+  <rect x="207.36" y="0" width="46.08" height="153.6" rx="13.82" fill="#ffffff"/>
+  <rect x="276.48" y="0" width="46.08" height="153.6" rx="13.82" fill="#ffffff"/>
+  <rect x="345.6" y="0" width="115.2" height="153.6" rx="22.12" fill="#cdebd3"/>
+  <path d="M368.92 78.23 L394.63 102.51 L438.91 52.52" fill="none" stroke="#0e5f52" stroke-width="19.58" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -1,0 +1,16 @@
+# O repositório é PÚBLICO: segredos e dados de clientes nunca entram aqui.
+# As chaves de produção ficam só no Portainer (variáveis da stack).
+.env
+**/.env
+!**/.env.example
+**/*.db
+**/*.db-*
+**/__pycache__/
+**/.venv/
+*.log
+~$*
+# planilhas feitas para a RH de um cliente (nomes de funcionários reais): fora do repositório
+*.xlsx
+*.xls
+*.csv
+.vscode/

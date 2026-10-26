@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Escala Certa">
+  <title>Escala Certa</title>
+  <rect width="512" height="512" rx="112.64" fill="#0e5f52"/>
+  <g transform="translate(81.07 128)">
+  <rect x="0" y="0" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="93.87" y="0" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="187.73" y="0" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="281.6" y="0" width="68.27" height="68.27" rx="17.75" fill="#ffffff"/>
+  <rect x="0" y="93.87" width="68.27" height="68.27" rx="17.75" fill="#ffffff"/>
+  <rect x="93.87" y="93.87" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="187.73" y="93.87" width="68.27" height="68.27" rx="17.75" fill="#ffffff"/>
+  <rect x="281.6" y="93.87" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="0" y="187.73" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="93.87" y="187.73" width="68.27" height="68.27" rx="17.75" fill="#ffffff"/>
+  <rect x="187.73" y="187.73" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  <rect x="281.6" y="187.73" width="68.27" height="68.27" rx="17.75" fill="#ffffff" fill-opacity="0.22"/>
+  </g>
+</svg>
