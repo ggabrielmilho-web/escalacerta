@@ -386,7 +386,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       <ol class="passos">
         <li><b>Informe a sua equipe</b> e como a empresa funciona: dias abertos, gente mínima por dia e as regras do domingo.</li>
         <li><b>Veja quantas pessoas a regra nova pede</b>, comparado com quem você tem hoje. Se faltar gente, o app diz quantas contratar.</li>
-        <li><b>Receba a escala pronta</b>: quem folga em cada dia, conferida contra a lei, que se repete sozinha.</li>
+        <li><b>Receba a escala pronta</b>: quem folga em cada dia, conferida contra a lei, no Excel e em imagem pronta para o WhatsApp da equipe.</li>
       </ol>
       <div class="amostra" aria-hidden="true">
         <span class="nota">Exemplo do que você recebe</span>
@@ -426,9 +426,10 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       <p class="nota" id="pv-aviso"></p>
       <p class="nota" id="prox-ciclo"></p>
       <ul class="lista-ok">
-        <li>Folgas de cada pessoa, dia a dia, por 12 meses</li>
+        <li>Folgas de cada pessoa, dia a dia, nos próximos 12 meses</li>
         <li>Conferida: 2 folgas por semana, domingos e mínimo de gente por dia</li>
-        <li>Excel pronto para imprimir, que fica vermelho se alguém errar uma troca</li>
+        <li>Imagem do mês pronta para mandar no WhatsApp da equipe</li>
+        <li>Excel para imprimir e afixar, que fica vermelho se alguém errar uma troca</li>
       </ul>
       <div class="compra">
         <div class="preco"><strong>R$ 37</strong><span>pagamento único · <b class="ilimitado">acesso ilimitado</b> · monte de novo quantas vezes quiser</span></div>
@@ -834,7 +835,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const res = estado.res, cfg = res.cfg, N = cfg.nomes.length, eq = estado.equipe;
     $('prox-titulo').textContent = eq && eq.contratadas
       ? 'Contratar é só o começo. Escalar corretamente é o desafio.'
-      : 'Sua equipe dá conta. Agora o desafio é escalar certo.';
+      : 'Sua equipe dá conta. Agora, organize as folgas do ano todo.';
     $('prox-texto').textContent = `Já montamos a escala ${N === 1 ? 'da sua 1 pessoa' : `das suas ${N} pessoas`}. Veja a primeira semana:`;
     $('prox-ciclo').textContent = fraseCiclo(res);
     // mesmos controles do calendário pago: o cliente vê que tem 12 meses e dois formatos,

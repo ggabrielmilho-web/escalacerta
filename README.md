@@ -102,7 +102,7 @@ Rode o teste sempre que mexer no `motor.js`.
 
 **O resultado grátis:**
 - **Placar:** Hoje · A regra pede · Faltam (ou "Dá conta" / "Sobra"). Com art. 386, mostra os dois cenários: "falta 1 se contratar homens; 2 se mulheres". Quando falta gente, a escala já sai montada com "Contratação 1, 2…".
-- **Card "Sua próxima etapa":** o título é "Contratar é só o começo. Escalar corretamente é o desafio." (ou "Sua equipe dá conta. Agora o desafio é escalar certo."). Mostra a **primeira semana** em formato de calendário, com os controles de mês e de formato; o resto aparece borrado. Traz também o preço e o botão **"Liberar minha escala completa"**.
+- **Card "Sua próxima etapa":** o título é "Contratar é só o começo. Escalar corretamente é o desafio." (ou "Sua equipe dá conta. Agora, organize as folgas do ano todo."). Mostra a **primeira semana** em formato de calendário, com os controles de mês e de formato; o resto aparece borrado. Traz a lista do que vem na versão completa (folgas de 12 meses, conferida, **imagem do mês para o WhatsApp**, Excel que fica vermelho se errar), o preço e o botão **"Liberar minha escala completa"**.
 
 **A área paga:**
 - calendário de 12 meses, mês a mês, com os feriados;
