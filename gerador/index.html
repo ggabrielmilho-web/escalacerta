@@ -1595,11 +1595,14 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     g.textBaseline = 'alphabetic';
     return { cv, g };
   }
+  // a imagem vai para o grupo da equipe: o endereço no rodapé é por onde quem viu chega ao site
   function rodapeImagem(g, W, H, pad, ferMes) {
-    g.textAlign = 'left'; g.font = `600 12px ${FT}`; g.fillStyle = COR_IMG.tinta2;
-    if (ferMes.length) g.fillText(cortar(g, 'Feriados: ' + ferMes.map(f => `${M.ddmm(f.dia)} ${f.nome}`).join(' · '), W - 2 * pad - 110), pad, H - 20);
+    const marca = 'Feito no escalacerta.carvalhoia.com';
     g.textAlign = 'right'; g.font = `800 12px ${FT}`; g.fillStyle = COR_IMG.acento;
-    g.fillText('Escala Certa', W - pad, H - 20);
+    g.fillText(marca, W - pad, H - 20);
+    const largMarca = g.measureText(marca).width;
+    g.textAlign = 'left'; g.font = `600 12px ${FT}`; g.fillStyle = COR_IMG.tinta2;
+    if (ferMes.length) g.fillText(cortar(g, 'Feriados: ' + ferMes.map(f => `${M.ddmm(f.dia)} ${f.nome}`).join(' · '), W - 2 * pad - largMarca - 16), pad, H - 20);
   }
 
   // a grade do mês: uma linha por pessoa, só a folga aparece
