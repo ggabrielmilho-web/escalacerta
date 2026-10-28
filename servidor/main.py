@@ -9,6 +9,7 @@ Rotas:
   POST /api/senha/trocar          troca a senha logado
   POST /api/pedido                cria a cobrança (Checkout Pro) para a conta logada
   GET  /api/pedido/{id}           situação do pedido; pago → acesso ilimitado
+  POST /api/reembolso             o cliente cancela a compra em até 7 dias: estorno no Mercado Pago e sai o acesso
   GET|PUT /api/escala             a escala salva da conta (para voltar e usar de novo)
   POST /webhook/mercadopago       aviso do Mercado Pago (o pagamento é conferido de novo na API)
   GET  /                          o site (só a pasta do site, nunca a raiz do projeto)
@@ -18,6 +19,7 @@ import json
 import logging
 import re
 import secrets
+from datetime import timedelta
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -41,6 +43,7 @@ banco.criar_tabelas()
 
 PEDIDO = re.compile(r"^[0-9a-f]{16}$")
 ESCALA_MAX_BYTES = 5 * 1024 * 1024
+REEMBOLSO_DIAS = 7                     # direito de arrependimento (CDC, art. 49); o cliente cancela sozinho na conta
 
 
 @app.exception_handler(contas.Erro)
@@ -124,7 +127,11 @@ def sair(request: Request):
 @app.get("/api/eu")
 def eu(request: Request):
     u = usuario_logado(request, obrigatorio=False)
-    return {"logado": False} if not u else {"logado": True, **contas.publico(u)}
+    if not u:
+        return {"logado": False}
+    p = pedido_reembolsavel(u["id"])
+    ate = banco.iso(p["aprovado"] + timedelta(days=REEMBOLSO_DIAS)) if p else None
+    return {"logado": True, **contas.publico(u), "reembolso_ate": ate}
 
 
 @app.post("/api/senha/esqueci")
@@ -176,7 +183,9 @@ def aprovar(pid, payment_id):
     a troca de status é um UPDATE condicional, e só quem efetivamente trocou libera o acesso.
     """
     with banco.conexao() as con:
-        cur = con.execute("UPDATE pedidos SET status = 'aprovado', payment_id = %s, aprovado = %s WHERE id = %s AND status != 'aprovado'",
+        # pedido estornado nunca volta a liberar, mesmo que chegue um aviso atrasado do pagamento
+        cur = con.execute("UPDATE pedidos SET status = 'aprovado', payment_id = %s, aprovado = %s "
+                          "WHERE id = %s AND status NOT IN ('aprovado', 'reembolsando', 'reembolsado')",
                           (str(payment_id), banco.agora(), pid))
         if cur.rowcount != 1:
             return
@@ -194,15 +203,60 @@ def ver_pedido(pid: str, request: Request):
     if not p or p["usuario_id"] != u["id"]:
         raise HTTPException(404, "Pedido não encontrado.")
     status = p["status"]
-    if status != "aprovado":
+    if status not in ("aprovado", "reembolsando", "reembolsado"):
         # não depende só do aviso: pergunta direto ao Mercado Pago
         status, payment_id = mp.pagamento_aprovado_do_pedido(pid)
         if status == "aprovado":
             aprovar(pid, payment_id)
         elif status in ("pendente", "recusado"):
             with banco.conexao() as con:
-                con.execute("UPDATE pedidos SET status = %s WHERE id = %s AND status != 'aprovado'", (status, pid))
+                con.execute("UPDATE pedidos SET status = %s WHERE id = %s AND status IN ('aguardando', 'pendente', 'recusado')",
+                            (status, pid))
     return {"status": status, **contas.publico(contas.buscar(u["id"]))}
+
+
+def pedido_reembolsavel(uid):
+    """O pedido pago que o próprio cliente ainda pode cancelar: até 7 dias depois de aprovado, e só uma vez por
+    conta (quem já cancelou uma compra pede o segundo estorno por e-mail, e o direito continua garantido)."""
+    with banco.conexao() as con:
+        if con.execute("SELECT 1 FROM pedidos WHERE usuario_id = %s AND status IN ('reembolsando', 'reembolsado')",
+                       (uid,)).fetchone():
+            return None
+        return con.execute("SELECT * FROM pedidos WHERE usuario_id = %s AND status = 'aprovado' AND payment_id IS NOT NULL "
+                           "AND aprovado > %s ORDER BY aprovado DESC LIMIT 1",
+                           (uid, banco.agora() - timedelta(days=REEMBOLSO_DIAS))).fetchone()
+
+
+@app.post("/api/reembolso")
+def pedir_reembolso(request: Request):
+    """Cancela a compra: estorno total no Mercado Pago (volta no Pix ou no cartão) e tira o acesso pago."""
+    u = usuario_logado(request)
+    p = pedido_reembolsavel(u["id"])
+    if not p:
+        raise HTTPException(409, f"O cancelamento pela conta vale até {REEMBOLSO_DIAS} dias depois da compra. "
+                                 "Escreva para gabriel@carvalhoia.com que a gente resolve.")
+    with banco.conexao() as con:
+        # trava o pedido: dois cliques ou duas abas juntas não pedem dois estornos
+        cur = con.execute("UPDATE pedidos SET status = 'reembolsando' WHERE id = %s AND status = 'aprovado'", (p["id"],))
+        if cur.rowcount != 1:
+            raise HTTPException(409, "Este pedido já está sendo cancelado.")
+    try:
+        ok = mp.reembolsar(p["payment_id"], f"escala-reembolso-{p['id']}")
+    except Exception:
+        logger.exception("Erro ao estornar o pedido %s", p["id"])
+        ok = False
+    if not ok:
+        with banco.conexao() as con:
+            con.execute("UPDATE pedidos SET status = 'aprovado' WHERE id = %s AND status = 'reembolsando'", (p["id"],))
+        banco.log(u["id"], u["email"], ip_de(request), f"reembolso_falhou:{p['id']}")
+        raise HTTPException(502, "O Mercado Pago não fez o estorno agora. Tente de novo daqui a pouco ou escreva para "
+                                 "gabriel@carvalhoia.com, que a gente devolve o dinheiro.")
+    with banco.conexao() as con:
+        con.execute("UPDATE pedidos SET status = 'reembolsado' WHERE id = %s", (p["id"],))
+    contas.revogar_acesso(u["id"])
+    banco.log(u["id"], u["email"], ip_de(request), f"reembolso:{p['id']}")
+    logger.info("Pedido %s reembolsado a pedido do cliente", p["id"])
+    return {"ok": True, "valor": float(p["valor"]), "pedido": p["id"], **contas.publico(contas.buscar(u["id"]))}
 
 
 @app.post("/webhook/mercadopago")

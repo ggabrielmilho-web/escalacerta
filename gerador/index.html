@@ -138,7 +138,11 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 
 .preco { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .preco strong { font-family: var(--display); font-size: 30px; font-weight: 800; }
-.preco span { font-size: 13px; color: var(--tinta-2); }
+.preco span { font-size: 13px; color: var(--tinta-2); flex-basis: 100%; }
+.garantia { margin: 0; font-size: 13.5px; color: var(--tinta-2); background: var(--acento-suave); border-radius: 8px; padding: 10px 12px; }
+.garantia b { color: var(--tinta); }
+.garantia a { color: var(--acento); }
+@media (max-width: 600px) { .compra .botao.principal { flex: 1 1 100%; } }
 .preco .ilimitado { font-family: var(--display); font-weight: 800; color: var(--acento); background: var(--acento-suave); padding: 1px 7px; border-radius: 999px; }
 
 .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
@@ -181,6 +185,11 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .duvidas details p { margin: 0; padding: 12px 16px 14px; color: var(--tinta-2); }
 .duvidas a, .links-rodape a, .termos-conta a { color: var(--acento); }
 .termos-conta { font-size: 13px; color: var(--tinta-2); margin: 0; }
+.reembolso { border-top: 1px solid var(--linha); margin-top: 14px; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.reembolso p { margin: 0; font-size: 13.5px; color: var(--tinta-2); }
+.reembolso p b { color: var(--tinta); }
+.reembolso .botao { white-space: normal; text-align: center; }
+.botao.perigo { border-color: var(--erro); color: var(--erro); }
 .rodape { max-width: 1320px; margin: 32px auto 0; padding-top: 16px; border-top: 1px solid var(--linha); font-size: 13px; color: var(--tinta-2); }
 .rodape p { margin: 0 0 4px; }
 .rodape b { color: var(--tinta); }
@@ -445,10 +454,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         <li>Excel para imprimir e afixar, que fica vermelho se alguém errar uma troca</li>
       </ul>
       <div class="compra">
-        <div class="preco"><strong>R$ 37</strong><span>pagamento único · <b class="ilimitado">acesso ilimitado</b> · monte de novo quantas vezes quiser</span></div>
+        <div class="preco"><strong>R$ 37</strong><b class="ilimitado">pagamento único</b>
+          <span>sem mensalidade · acesso ilimitado: monte de novo quantas vezes quiser</span></div>
         <button type="button" class="botao principal" id="liberar">Liberar minha escala completa</button>
       </div>
-      <p class="nota">Pagamento único, sem mensalidade · 7 dias para pedir o dinheiro de volta · <a href="#duvidas">Dúvidas frequentes</a></p>
+      <p class="garantia"><b>Garantia de 7 dias.</b> Não gostou? Você cancela na sua conta e recebe os R$ 37 de volta,
+        sem precisar explicar. <a href="#duvidas">Dúvidas frequentes</a></p>
       <p class="nota" id="nota-prototipo">Protótipo aberto direto do arquivo: o botão libera sem cobrar. Pelo site, aqui entra a conta e o pagamento.</p>
       <p class="nota" id="ja-comprei" hidden>Pix ou cartão, no ambiente seguro do Mercado Pago. Já comprou?
         <button type="button" class="botao-link" id="abrir-entrar">Entrar na minha conta</button></p>
@@ -556,8 +567,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   </details>
   <details>
     <summary>E se não servir para mim?</summary>
-    <p>Você tem 7 dias depois da compra para pedir o dinheiro de volta, sem precisar explicar o motivo. É só escrever para
-      <a href="mailto:gabriel@carvalhoia.com">gabriel@carvalhoia.com</a> com o e-mail da conta.</p>
+    <p>Você tem garantia de 7 dias. Em <b>Minha conta</b>, toque em "Cancelar e receber o dinheiro de volta": no Pix o
+      valor volta na hora, e no cartão o estorno aparece na fatura. Não precisa explicar o motivo. Se tiver qualquer
+      problema, escreva para <a href="mailto:gabriel@carvalhoia.com">gabriel@carvalhoia.com</a>.</p>
   </details>
   <details>
     <summary>Precisa instalar alguma coisa?</summary>
@@ -628,6 +640,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     conta: ['sign_up', 'CompleteRegistration'],
     checkout: ['begin_checkout', 'InitiateCheckout'],
     compra: ['purchase', 'Purchase'],
+    reembolso: ['refund', null],            // só no GA4: a Meta não tem evento de estorno
   };
   function rastreia(nome, ga, meta, eventID) {
     if (!RASTREIO) return;
@@ -1522,9 +1535,46 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         <label>Nova senha (mínimo 8 caracteres) <input type="password" name="nova" autocomplete="new-password" minlength="8" required></label>
         <button class="botao" type="submit">Trocar senha</button>
       </form>
+      <div class="reembolso" id="reembolso" hidden></div>
       <div class="links"><button type="button" class="botao-link" data-sair>Sair da conta</button></div>`,
     },
   };
+  // garantia de 7 dias: o próprio cliente cancela e o estorno sai na hora pelo Mercado Pago
+  async function renderReembolso() {
+    try { estado.eu = Object.assign({}, estado.eu, await api('GET', '/api/eu')); } catch (_) { return; }
+    const el = $('reembolso');
+    if (!el || !estado.eu.reembolso_ate) return;
+    const ate = new Date(estado.eu.reembolso_ate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    el.innerHTML = `<p><b>Garantia de 7 dias.</b> Não gostou? Até ${ate} você cancela a compra e recebe os R$ ${precoVenda()}
+      de volta: no Pix volta na hora; no cartão, o estorno aparece na fatura.</p>
+      <button type="button" class="botao" data-reembolso>Cancelar e receber o dinheiro de volta</button>`;
+    el.hidden = false;
+  }
+  async function pedirReembolso(botao) {
+    if (botao.dataset.reembolso !== 'confirmar') {
+      // o primeiro toque só pergunta: cancelar por engano tira o acesso
+      botao.dataset.reembolso = 'confirmar';
+      botao.classList.add('perigo');
+      botao.textContent = 'Confirmar: cancelar a compra e tirar o acesso';
+      return;
+    }
+    botao.disabled = true; botao.textContent = 'Cancelando…';
+    $('dlg-erro').hidden = true;
+    try {
+      const r = await api('POST', '/api/reembolso');
+      rastreia('reembolso', { transaction_id: r.pedido, value: r.valor, currency: 'BRL' });
+      estado.eu = Object.assign({}, estado.eu, r, { reembolso_ate: null });
+      $('reembolso').innerHTML = `<p><b>Compra cancelada.</b> O estorno de R$ ${r.valor} já foi feito no Mercado Pago.
+        Se quiser voltar, é só liberar de novo.</p>`;
+      $('dlg-sub').textContent = `${estado.eu.email} · sem acesso ativo`;
+      $('dlg-conta').addEventListener('close', () => { location.href = location.pathname; }, { once: true });
+    } catch (e) {
+      botao.disabled = false; botao.textContent = 'Cancelar e receber o dinheiro de volta';
+      delete botao.dataset.reembolso; botao.classList.remove('perigo');
+      $('dlg-erro').hidden = false;
+      $('dlg-erro').textContent = e.message;
+    }
+  }
   let emailDigitado = '';
 
   function mostrarVista(nome, aviso) {
@@ -1539,6 +1589,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('dlg-erro').hidden = true;
     const email = $('dlg-corpo').querySelector('input[name="email"]');
     if (email && emailDigitado) email.value = emailDigitado;
+    if (nome === 'conta' && SERVIDOR && estado.eu) renderReembolso();
     const primeiro = $('dlg-corpo').querySelector(email && emailDigitado ? 'input:not([name="email"])' : 'input');
     // não rouba o foco de quem já tocou num campo (senão o que se digita cai no e-mail)
     if (primeiro) setTimeout(() => { if (!$('dlg-corpo').contains(document.activeElement)) primeiro.focus(); }, 30);
@@ -1557,6 +1608,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       mostrarVista(vista.dataset.vista);
       return;
     }
+    const reemb = ev.target.closest('[data-reembolso]');
+    if (reemb) { pedirReembolso(reemb); return; }
     if (ev.target.closest('[data-sair]')) {
       try { await api('POST', '/api/sair'); } catch (_) { /* sai do mesmo jeito */ }
       location.href = location.pathname;

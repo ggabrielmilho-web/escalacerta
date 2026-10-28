@@ -6,6 +6,7 @@ no Mercado Pago antes de liberar (mesmo cuidado do DanfeZap).
 import logging
 
 import mercadopago
+from mercadopago.config import RequestOptions
 
 from config import config
 
@@ -62,6 +63,23 @@ def pagamento_aprovado_do_pedido(pedido_id):
     if resultados:
         return "recusado", None
     return "aguardando", None
+
+
+def reembolsar(payment_id, chave):
+    """Estorno total do pagamento. Devolve True se o Mercado Pago aceitou (ou se já estava estornado).
+
+    `chave` vai como X-Idempotency-Key: um clique repetido nunca vira dois estornos.
+    Sem saldo na conta, o Mercado Pago responde 400 e o estorno não acontece.
+    """
+    opcoes = RequestOptions(custom_headers={"x-idempotency-key": chave})
+    r = sdk.refund().create(payment_id, request_options=opcoes)
+    if r.get("status") in (200, 201):
+        return True
+    pag = consultar_pagamento(payment_id)
+    if pag and pag.get("status") == "refunded":
+        return True
+    logger.error("Estorno do pagamento %s recusado: %s", payment_id, r)
+    return False
 
 
 def consultar_pagamento(payment_id):

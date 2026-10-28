@@ -204,6 +204,7 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 | `POST /api/senha/trocar` | Troca a senha logado |
 | `POST /api/pedido` | Cria a cobrança no Checkout Pro para a conta logada (409 se a conta já tem acesso: não cobra duas vezes) |
 | `GET /api/pedido/{id}` | Situação; se pago, libera o acesso ilimitado (só o dono do pedido vê) |
+| `POST /api/reembolso` | **Garantia de 7 dias** (CDC art. 49): o cliente cancela em "Minha conta"; estorno total na hora pelo Mercado Pago (`X-Idempotency-Key` por pedido), pedido vira `reembolsado` e o acesso sai. Uma vez por conta; depois, por e-mail. Se o MP recusar (sem saldo), o pedido volta a `aprovado` e a mensagem manda escrever. Aviso atrasado do MP nunca relibera pedido estornado. `GET /api/eu` traz `reembolso_ate` |
 | `GET`/`PUT /api/escala` | A escala salva da conta (só com acesso ativo; até 5 MB) |
 | `POST /webhook/mercadopago` | Aviso do Mercado Pago. O pagamento é sempre **consultado de novo** na API |
 | `GET /` | O site: **só a pasta `gerador`**, nunca a raiz do projeto |
@@ -274,7 +275,7 @@ python admin.py revogar <email>   # tira o acesso (estorno ou arrependimento); a
 python admin.py senha <email>     # gera senha temporária nova (a pessoa troca em "Minha conta")
 python admin.py apagar <email>    # pedido de exclusão (LGPD): apaga e-mail, senha e escala salva; pede para digitar APAGAR
 ```
-Use para cortesia, para teste, para estorno (o direito de arrependimento de 7 dias do CDC vale para compra pela internet) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail nem senha, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. A senha temporária aparece só na tela.
+Use para cortesia, para teste, para estorno feito fora do botão (o direito de arrependimento de 7 dias do CDC vale para compra pela internet; o `revogar` não devolve o dinheiro: estorne no painel do Mercado Pago) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail nem senha, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. A senha temporária aparece só na tela.
 
 ---
 
