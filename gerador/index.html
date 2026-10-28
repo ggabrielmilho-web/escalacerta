@@ -547,6 +547,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   // cada passo do funil, com o nome no GA4 e o evento padrão da Meta (a Meta otimiza a campanha por eles)
   const EVENTOS = {
     calculo: ['calculo_feito', 'ViewContent'],
+    recalculo: ['calculo_refeito', null],   // só no GA4: não é etapa do funil da Meta
     liberar: ['clique_liberar', 'AddToCart'],
     conta: ['sign_up', 'CompleteRegistration'],
     checkout: ['begin_checkout', 'InitiateCheckout'],
@@ -556,11 +557,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     if (!RASTREIO) return;
     const [g, m] = EVENTOS[nome];
     try { window.gtag('event', g, ga || {}); } catch (_) { /* rastreio nunca derruba a página */ }
-    try { eventID ? window.fbq('track', m, meta || {}, { eventID }) : window.fbq('track', m, meta || {}); } catch (_) { /* idem */ }
+    if (m) try { eventID ? window.fbq('track', m, meta || {}, { eventID }) : window.fbq('track', m, meta || {}); } catch (_) { /* idem */ }
   }
   const precoVenda = () => Number(($('liberar').closest('.compra')?.querySelector('.preco strong')?.textContent || '').replace(/\D/g, '')) || 37;
   const itemVenda = () => [{ item_id: 'escala-certa-ilimitado', item_name: 'Escala Certa', price: precoVenda(), quantity: 1 }];
   let calculoRastreado = false;
+  let calculosNaVisita = 0;
   const CHAVE_PENDENTE = 'escalaCerta.pendente';
 
   const estado = {
@@ -746,7 +748,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('aviso-form').textContent = txt || '';
     if (txt) $('aviso-form').scrollIntoView({ block: 'nearest' });   // clicou no botão fixo do celular: a mensagem fica longe
   }
-  function montar() {
+  function montar(como = 'atualizar') {
     const a = art386();
     avisoForm('');
     if (a === null) {
@@ -804,10 +806,14 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       $('montar').textContent = 'Atualizar escala';
       render();
       agendarSalvar(0);
+      calculosNaVisita++;
+      const eqR = estado.equipe || {};
       if (!calculoRastreado) {
         calculoRastreado = true;
-        const eq = estado.equipe || {};
-        rastreia('calculo', { equipe: eq.hoje, faltam: eq.contratadas || 0 }, { content_name: 'resultado do cálculo' });
+        rastreia('calculo', { equipe: eqR.hoje, faltam: eqR.contratadas || 0 }, { content_name: 'resultado do cálculo' });
+      } else {
+        // refazer o cálculo na mesma visita: quem testa cenários está planejando a empresa de verdade
+        rastreia('recalculo', { equipe: eqR.hoje, faltam: eqR.contratadas || 0, vez: calculosNaVisita, como });
       }
       // no celular o resultado fica embaixo do formulário: leva a pessoa até ele
       if (window.innerWidth < 900) {
@@ -850,7 +856,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   });
   const outraOpcao = () => {
     if (!podeDescartarTrocas('Ver outra opção de rodízio')) return;
-    estado.semente++; montar();
+    estado.semente++; montar('outra_opcao');
   };
   $('outra').addEventListener('click', outraOpcao);
   $('outra2').addEventListener('click', outraOpcao);
@@ -969,7 +975,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       el.querySelectorAll('[data-ajuste]').forEach(b => b.addEventListener('click', () => {
         const aj = e.sugestoes[+b.dataset.ajuste].ajuste;
         if (aj.maxSeguidos) estado.maxSeguidos = aj.maxSeguidos;
-        estado.semente = 0; montar();
+        estado.semente = 0; montar('sugestao');
       }));
       return;
     }
