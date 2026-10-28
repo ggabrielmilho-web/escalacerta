@@ -6,6 +6,7 @@ sem SDK. Sem RESEND_API_KEY (desenvolvimento), o texto só aparece no log do ser
 import html
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 
@@ -14,11 +15,16 @@ from config import config
 logger = logging.getLogger(__name__)
 
 
+def _sem_codigo(assunto):
+    # o assunto leva o código de recuperação: no log ele nunca aparece (quem lê o log tomaria a conta)
+    return re.sub(r"\d{4,}", "******", assunto)
+
+
 def enviar(para, assunto, texto):
     if not config.RESEND_API_KEY:
         if config.EM_PRODUCAO:
             # nunca escrever o código no log de produção: quem lê o log tomaria a conta
-            logger.error("Resend não configurado: e-mail '%s' não foi enviado", assunto)
+            logger.error("Resend não configurado: e-mail '%s' não foi enviado", _sem_codigo(assunto))
         else:
             logger.warning("Resend não configurado (desenvolvimento): para %s: %s", para, texto)
         return
@@ -31,13 +37,15 @@ def enviar(para, assunto, texto):
     if config.EMAIL_RESPOSTA:
         dados["reply_to"] = config.EMAIL_RESPOSTA
     req = urllib.request.Request("https://api.resend.com/emails", data=json.dumps(dados).encode(), method="POST",
-                                 headers={"Authorization": f"Bearer {config.RESEND_API_KEY}", "Content-Type": "application/json"})
+                                 # o Cloudflare do Resend barra o agente padrão "Python-urllib" (403, error code 1010)
+                                 headers={"Authorization": f"Bearer {config.RESEND_API_KEY}", "Content-Type": "application/json",
+                                          "User-Agent": "EscalaCerta/1.0 (+https://escalacerta.carvalhoia.com)"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             if r.status not in (200, 201):
-                logger.error("Resend respondeu %s ao mandar '%s'", r.status, assunto)
+                logger.error("Resend respondeu %s ao mandar '%s'", r.status, _sem_codigo(assunto))
     except urllib.error.HTTPError as e:
-        logger.error("Resend recusou '%s': HTTP %s %s", assunto, e.code, e.read()[:300])
+        logger.error("Resend recusou '%s': HTTP %s %s", _sem_codigo(assunto), e.code, e.read()[:300])
     except Exception:
         # não conta ao visitante (a resposta da recuperação é sempre igual), mas fica no log
-        logger.exception("Falha ao mandar e-mail '%s'", assunto)
+        logger.exception("Falha ao mandar e-mail '%s'", _sem_codigo(assunto))
