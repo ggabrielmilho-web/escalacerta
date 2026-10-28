@@ -152,6 +152,13 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .alterna { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: 8px; overflow: hidden; }
 .alterna button { border: 0; background: var(--cartao); padding: 7px 12px; cursor: pointer; font-weight: 700; font-size: 14px; }
 .alterna button[aria-pressed="true"] { background: var(--tinta); color: var(--papel); }
+.levar .acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 24px; }
+.levar .acao { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+.levar .rot { font-size: 13px; font-weight: 700; color: var(--tinta-2); }
+.levar .linha { display: flex; gap: 8px; width: 100%; }
+.levar .linha select { flex: 0 1 auto; min-width: 0; }
+.levar .linha .botao { flex: 1 1 auto; }
+.levar .aviso-copia { margin-top: 4px; }
 .mes-nav { display: inline-flex; gap: 4px; align-items: center; }
 .mes-nav select { font-weight: 700; }
 
@@ -483,40 +490,50 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     </div>
 
     <div id="pago" class="resultado" hidden>
+      <!-- o que se leva da escala, separado do que muda a tela: cada lista fica junto do botão dela -->
+      <div class="cartao levar">
+        <span class="eyebrow">Levar a escala</span>
+        <div class="acoes">
+          <div class="acao">
+            <span class="rot">Mandar para a equipe no WhatsApp</span>
+            <div class="linha">
+              <select id="img-quem" aria-label="Quem aparece na imagem: equipe toda ou uma pessoa"></select>
+              <button type="button" class="botao principal" id="imagem">Ver imagem do mês</button>
+            </div>
+            <button type="button" class="botao-link" id="copiar">ou copiar como texto</button>
+          </div>
+          <div class="acao">
+            <span class="rot">Imprimir e afixar</span>
+            <div class="linha">
+              <select id="formato" aria-label="Formato da planilha">
+                <option value="dia">Uma linha por dia</option>
+                <option value="pessoa">Uma linha por pessoa</option>
+              </select>
+              <button type="button" class="botao" id="baixar">Baixar Excel</button>
+            </div>
+          </div>
+        </div>
+        <p class="aviso-copia" id="aviso-copia" hidden></p>
+      </div>
       <div class="barra">
-        <div class="grupo">
-          <div class="mes-nav">
-            <button type="button" class="botao pequeno" id="mes-ant" aria-label="Mês anterior">‹</button>
-            <select id="mes" aria-label="Mês do calendário"></select>
-            <button type="button" class="botao pequeno" id="mes-prox" aria-label="Próximo mês">›</button>
-          </div>
-          <div class="alterna" role="group" aria-label="Como ver o calendário">
-            <button type="button" data-visao="pessoa" aria-pressed="true">Uma linha por pessoa</button>
-            <button type="button" data-visao="dia" aria-pressed="false">Uma linha por dia</button>
-          </div>
+        <div class="mes-nav">
+          <button type="button" class="botao pequeno" id="mes-ant" aria-label="Mês anterior">‹</button>
+          <select id="mes" aria-label="Mês do calendário"></select>
+          <button type="button" class="botao pequeno" id="mes-prox" aria-label="Próximo mês">›</button>
         </div>
-        <div class="grupo">
-          <select id="formato" aria-label="Formato da planilha">
-            <option value="dia">Excel: uma linha por dia</option>
-            <option value="pessoa">Excel: uma linha por pessoa</option>
-          </select>
-          <button type="button" class="botao" id="baixar">Baixar Excel</button>
-        </div>
-        <div class="grupo">
-          <select id="img-quem" aria-label="Imagem de quem: equipe toda ou uma pessoa"></select>
-          <button type="button" class="botao" id="imagem">Ver imagem do mês p/ WhatsApp</button>
-          <button type="button" class="botao" id="copiar">Copiar texto</button>
+        <div class="alterna" role="group" aria-label="Como ver o calendário">
+          <button type="button" data-visao="pessoa" aria-pressed="true">Uma linha por pessoa</button>
+          <button type="button" data-visao="dia" aria-pressed="false">Uma linha por dia</button>
         </div>
       </div>
-      <p class="aviso-copia" id="aviso-copia" hidden></p>
       <div class="trocas" id="trocas" hidden>
         <span id="trocas-texto"></span>
         <button type="button" class="botao-link" id="desfazer">Desfazer a última</button>
         <button type="button" class="botao-link" id="desfazer-todas">Voltar à escala original</button>
       </div>
-      <p class="nota" id="salvo" hidden></p>
       <div class="quadro"><div class="rolagem" id="rolagem"></div></div>
       <p class="nota" id="feriados-mes"></p>
+      <p class="nota" id="salvo" hidden></p>
       <div class="cartao" id="cartao-fixa">
         <div class="cabeca-cartao">
           <h3 id="fixa-titulo">Escala fixa</h3>
