@@ -639,6 +639,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     calculo: ['calculo_feito', 'ViewContent'],
     recalculo: ['calculo_refeito', null],   // só no GA4: não é etapa do funil da Meta
     viuPreco: ['viu_preco', null],          // o card de compra apareceu de verdade na tela (só no GA4)
+    verEscala: ['clique_ver_escala', null], // tocou em "Ver a minha escala" no resultado (só no GA4)
     liberar: ['clique_liberar', 'AddToCart'],
     conta: ['sign_up', 'CompleteRegistration'],
     checkout: ['begin_checkout', 'InitiateCheckout'],
@@ -1120,7 +1121,11 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       (na ? `<div class="avisos"><b>${na === 1 ? 'Confira' : `Confira (${na})`}</b><ul>${val.avisos.slice(0, 15).map(a => `<li>${esc(a.texto)}</li>`).join('')}` +
         `${na > 15 ? `<li>e mais ${na - 15}…</li>` : ''}</ul></div>` : '');
     const ir = $('ir-previa');
-    if (ir) ir.addEventListener('click', () => $('proximo').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    if (ir) ir.addEventListener('click', () => {
+      // separa quem chegou ao preço pelo botão de quem rolou a página sozinho
+      rastreia('verEscala', { equipe: eq ? eq.hoje : undefined, faltam: eq ? eq.contratadas || 0 : 0 });
+      $('proximo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   function renderFixa() {
