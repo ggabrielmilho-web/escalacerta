@@ -172,6 +172,11 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
     background: var(--papel); border-top: 1px solid var(--linha); box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.08); }
   .barra-fixa .botao { width: 100%; }
 }
+/* dados de quem vende, que a lei do comércio eletrônico pede no site */
+.rodape { max-width: 1320px; margin: 32px auto 0; padding-top: 16px; border-top: 1px solid var(--linha); font-size: 13px; color: var(--tinta-2); }
+.rodape p { margin: 0 0 4px; }
+.rodape b { color: var(--tinta); }
+.rodape a { color: inherit; }
 .rolagem { overflow: auto; max-height: 72vh; }
 table.escala { border-collapse: separate; border-spacing: 0; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .escala th, .escala td { border-bottom: 1px solid var(--linha); border-right: 1px solid var(--linha); padding: 0; text-align: center; white-space: nowrap; }
@@ -496,6 +501,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     </div>
   </section>
 </main>
+
+<footer class="rodape">
+  <p><b>Escala Certa</b> · um produto CarvalhoIA Desenvolvimento</p>
+  <p>CNPJ 64.942.407/0001-10 · Gabriel França Carvalho (MEI) · Uberlândia/MG ·
+    <a href="mailto:gabriel@carvalhoia.com">gabriel@carvalhoia.com</a></p>
+</footer>
 
 <dialog class="dlg" id="dlg-conta" aria-labelledby="dlg-titulo">
   <form method="dialog" class="dlg-fechar"><button class="tirar" aria-label="Fechar">✕</button></form>
