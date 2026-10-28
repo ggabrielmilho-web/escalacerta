@@ -162,15 +162,17 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
   content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 48px; pointer-events: none;
   background: linear-gradient(to right, transparent, var(--cartao) 75%); opacity: 0; transition: opacity 150ms;
 }
-.quadro::before, .moldura::before {
-  content: '›'; position: absolute; top: 50%; right: 8px; z-index: 1; width: 30px; height: 30px; margin-top: -15px; pointer-events: none;
-  display: flex; align-items: center; justify-content: center; border-radius: 50%; padding-bottom: 3px; box-sizing: border-box;
-  background: var(--acento); color: var(--acento-tinta); font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); opacity: 0; transition: opacity 150ms;
+/* a seta é um botão de verdade: anda a tabela para a direita. Antes era desenho e o toque caía na célula de baixo
+   (no calendário pago, trocava a folga daquele dia) */
+.seta-dir {
+  position: absolute; top: 50%; right: 8px; z-index: 4; width: 34px; height: 34px; margin-top: -17px; padding: 0;
+  display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; cursor: pointer;
+  background: var(--acento); color: var(--acento-tinta); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  opacity: 0; visibility: hidden; transition: opacity 150ms, visibility 150ms;
 }
+.seta-dir svg { width: 16px; height: 16px; }
 .quadro::after, .moldura::after { z-index: 3; }
-.quadro::before, .moldura::before { z-index: 4; }
-.mais-dir::after, .mais-dir::before { opacity: 1; }
+.mais-dir::after, .mais-dir > .seta-dir { opacity: 1; visibility: visible; }
 /* celular: o botão do formulário fica quase 2 telas abaixo; enquanto o formulário está na tela, um igual fica fixo embaixo */
 .barra-fixa { display: none; }
 @media (max-width: 899px) {
@@ -946,6 +948,11 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   })();
   function marcarRolagem(el) {
     const caixa = el.parentElement;
+    const seta = document.createElement('button');
+    seta.type = 'button'; seta.className = 'seta-dir'; seta.setAttribute('aria-label', 'Ver mais dias');
+    seta.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    seta.addEventListener('click', () => el.scrollBy({ left: Math.max(120, el.clientWidth * 0.7), behavior: 'smooth' }));
+    caixa.appendChild(seta);
     const atualiza = () => caixa.classList.toggle('mais-dir', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
     el.addEventListener('scroll', atualiza, { passive: true });
     if ('ResizeObserver' in window) new ResizeObserver(atualiza).observe(el);
