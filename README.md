@@ -19,8 +19,8 @@ Ferramenta web que responde **quantas pessoas uma empresa precisa com a escala 5
 | Empacotamento (`Dockerfile`, `escala-stack.yml`) | Pronto; publicação em https://escalacerta.carvalhoia.com (seção 12) |
 | Domínio | Começa em `escalacerta.carvalhoia.com`; domínio próprio só se vender (`escalacerta.app.br` estava livre em 23/10) |
 | Credenciais de produção (Mercado Pago, Resend, `SECRET_KEY`) | Só nas variáveis da stack no Portainer, **nunca no repositório** |
-| Termos de uso e política de privacidade | **Falta**: obrigatórios (LGPD, guardamos e-mail) e exigidos pela Meta |
-| Seções de baixo da página (lei, perguntas frequentes, preço, rodapé com CNPJ) | **Falta**; depende de definir qual empresa vende |
+| Termos de uso e política de privacidade | Prontos (28/10): `gerador/termos.html` e `gerador/privacidade.html`, com link no rodapé e na criação de conta. **Sem aviso de cookies por enquanto** (decisão do usuário) |
+| Seções de baixo da página | Prontas (28/10): dúvidas frequentes (`#duvidas`) e rodapé com o MEI que vende (CNPJ 64.942.407/0001-10, Uberlândia/MG, gabriel@carvalhoia.com) |
 | Repositório | `github.com/ggabrielmilho-web/escalacerta`, **público**: sem chaves nem dados de cliente (seção 12) |
 
 ---
@@ -272,8 +272,9 @@ A compra é contada **uma vez por pedido** (marca no navegador). Ela só é cont
 python admin.py liberar <email>   # libera o acesso ilimitado; cria a conta com senha temporária se não existir
 python admin.py revogar <email>   # tira o acesso (estorno ou arrependimento); a conta e a escala salva continuam
 python admin.py senha <email>     # gera senha temporária nova (a pessoa troca em "Minha conta")
+python admin.py apagar <email>    # pedido de exclusão (LGPD): apaga e-mail, senha e escala salva; pede para digitar APAGAR
 ```
-Use para cortesia, para teste, para estorno (o direito de arrependimento de 7 dias do CDC vale para compra pela internet) ou para quem perdeu o acesso ao e-mail. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. A senha temporária aparece só na tela.
+Use para cortesia, para teste, para estorno (o direito de arrependimento de 7 dias do CDC vale para compra pela internet) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail nem senha, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. A senha temporária aparece só na tela.
 
 ---
 
@@ -356,7 +357,7 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 
 **Próximos passos:**
 1. Deploy em `escalacerta.carvalhoia.com` (seção 12).
-2. Termos de uso e política de privacidade; seções de baixo da página (lei, perguntas frequentes, preço, rodapé com CNPJ de quem vende).
-3. Teste de compra real (Pix e cartão) e do e-mail de recuperação.
-4. Pixel e GA4 no ar (seção 10.1); falta a API de Conversões da Meta no servidor e a política de privacidade que cite os dois.
+2. Aviso de cookies do GA4 e do Pixel (orientação da ANPD), quando o volume crescer.
+3. Teste de compra real (Pix e cartão) e do e-mail de recuperação (o 403 do Resend foi corrigido em 28/10: agente `Python-urllib` barrado pelo Cloudflare).
+4. Pixel e GA4 no ar (seção 10.1); falta a API de Conversões da Meta no servidor.
 5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; turnos (manhã e tarde) e 12x36 na v2.

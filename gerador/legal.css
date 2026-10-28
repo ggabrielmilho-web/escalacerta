@@ -1,0 +1,54 @@
+/* páginas de texto (privacidade e termos): mesmas cores e letras do site, sem a fonte externa */
+:root {
+  --papel: #f3f5f1; --cartao: #ffffff; --tinta: #17231e; --tinta-2: #56655e; --linha: #d6ddd8; --acento: #0e5f52;
+  --texto: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #121a17; --cartao: #1a2420; --tinta: #e7eeea; --tinta-2: #a2b1aa; --linha: #2f3c36; --acento: #5cc2ad;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #121a17; --cartao: #1a2420; --tinta: #e7eeea; --tinta-2: #a2b1aa; --linha: #2f3c36; --acento: #5cc2ad;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--papel); color: var(--tinta); font-family: var(--texto); font-size: 16px; line-height: 1.6;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px));
+}
+a { color: var(--acento); }
+.cabeca, .texto, .rodape { max-width: 760px; margin: 0 auto; }
+.cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-block: 18px 8px; }
+.logo img { display: block; height: 30px; width: auto; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo img { content: url(img/logo-fundo-escuro.svg); } }
+:root[data-theme="dark"] .logo img { content: url(img/logo-fundo-escuro.svg); }
+.voltar { font-size: 14px; }
+.texto { background: var(--cartao); border: 1px solid var(--linha); border-radius: 10px; padding: 24px 28px; margin-top: 12px; }
+@media (max-width: 600px) { .texto { padding: 18px 16px; } }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 4px; }
+h2 { font-size: 19px; margin: 28px 0 8px; }
+.data { color: var(--tinta-2); font-size: 14px; margin-top: 0; }
+ul { padding-left: 22px; }
+li { margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 12px; }
+th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--linha); }
+th { color: var(--tinta-2); font-weight: 700; }
+@media (max-width: 600px) {
+  /* no celular a tabela vira lista: cada linha um bloco */
+  table, tbody, tr, td { display: block; width: 100%; }
+  thead { display: none; }
+  tr { border-bottom: 1px solid var(--linha); padding: 8px 0; }
+  td { border: 0; padding: 2px 0; }
+  td:nth-child(2)::before { content: "Para quê: "; font-weight: 700; }
+  td:nth-child(3)::before { content: "Base legal: "; font-weight: 700; }
+  td:first-child { font-weight: 700; }
+}
+.ver-tambem { margin-top: 28px; color: var(--tinta-2); }
+.rodape { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--linha); font-size: 13px; color: var(--tinta-2); }
+.rodape p { margin: 0 0 4px; }
+.rodape b { color: var(--tinta); }
+.rodape a { color: inherit; }
