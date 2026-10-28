@@ -20,7 +20,47 @@ def _sem_codigo(assunto):
     return re.sub(r"\d{4,}", "******", assunto)
 
 
-def enviar(para, assunto, texto):
+FONTE = "Arial,Helvetica,sans-serif"
+
+
+def _p(texto, tamanho=16, cor="#17231e", margem=14):
+    return f'<p style="margin:0 0 {margem}px;font:{tamanho}px/1.5 {FONTE};color:{cor}">{html.escape(texto)}</p>'
+
+
+def _html(texto, codigo=None, minutos=None):
+    """O e-mail com a cara do site. Só tabela e estilo na linha: é o que Gmail, Outlook e celular respeitam.
+    Com `codigo`, usa o modelo do código de senha, com o número grande numa caixa, fácil de ler e de copiar;
+    sem ele, cada linha do texto vira um parágrafo."""
+    site = config.BASE_URL
+    if codigo:
+        miolo = (
+            _p("Olá!")
+            + _p("Recebemos um pedido para criar uma nova senha na sua conta da Escala Certa. Use este código:", margem=12)
+            + '<div style="margin:0 0 10px;padding:18px 0;background:#e3efeb;border-radius:10px;text-align:center;'
+              f'font:bold 34px/1 \'Courier New\',monospace;letter-spacing:8px;color:#0e5f52">{html.escape(codigo)}</div>'
+            + _p(f"Vale por {minutos} minutos e só pode ser usado uma vez.", 13, "#56655e", 20)
+            + _p("Se não foi você que pediu, pode ignorar este e-mail: a sua senha continua a mesma.", 14, "#56655e")
+        )
+    else:
+        miolo = "".join(_p(linha) for linha in texto.split("\n") if linha.strip())
+    return (
+        '<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#f3f5f1">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f1">'
+        '<tr><td align="center" style="padding:28px 12px">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">'
+        f'<tr><td style="padding:0 4px 16px"><a href="{site}"><img src="{site}/img/logo-email.png" width="220" height="21" '
+        'alt="Escala Certa" style="display:block;border:0"></a></td></tr>'
+        f'<tr><td style="background:#ffffff;border:1px solid #d6ddd8;border-radius:12px;padding:28px 26px 14px">{miolo}</td></tr>'
+        f'<tr><td style="padding:16px 4px 0;font:12px/1.6 {FONTE};color:#56655e">'
+        f'<b style="color:#17231e">Escala Certa</b> · a escala de folgas 5x2 conferida contra a lei<br>'
+        'CarvalhoIA Desenvolvimento · CNPJ 64.942.407/0001-10 · Uberlândia/MG<br>'
+        f'<a href="{site}" style="color:#0e5f52">escalacerta.carvalhoia.com</a> · '
+        '<a href="mailto:gabriel@carvalhoia.com" style="color:#0e5f52">gabriel@carvalhoia.com</a>'
+        '</td></tr></table></td></tr></table></body></html>'
+    )
+
+
+def enviar(para, assunto, texto, codigo=None, minutos=None):
     if not config.RESEND_API_KEY:
         if config.EM_PRODUCAO:
             # nunca escrever o código no log de produção: quem lê o log tomaria a conta
@@ -28,11 +68,7 @@ def enviar(para, assunto, texto):
         else:
             logger.warning("Resend não configurado (desenvolvimento): para %s: %s", para, texto)
         return
-    corpo_html = (
-        '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#17231e">'
-        + "".join(f"<p>{html.escape(linha)}</p>" for linha in texto.split("\n") if linha.strip())
-        + '<p style="color:#56655e;font-size:13px">Escala Certa · escala de folgas 5x2</p></div>'
-    )
+    corpo_html = _html(texto, codigo, minutos)
     dados = {"from": config.EMAIL_REMETENTE, "to": [para], "subject": assunto, "text": texto, "html": corpo_html}
     if config.EMAIL_RESPOSTA:
         dados["reply_to"] = config.EMAIL_RESPOSTA

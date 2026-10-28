@@ -142,7 +142,6 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .garantia { margin: 0; font-size: 13.5px; color: var(--tinta-2); background: var(--acento-suave); border-radius: 8px; padding: 10px 12px; }
 .garantia b { color: var(--tinta); }
 .garantia a { color: var(--acento); }
-@media (max-width: 600px) { .compra .botao.principal { flex: 1 1 100%; } }
 .preco .ilimitado { font-family: var(--display); font-weight: 800; color: var(--acento); background: var(--acento-suave); padding: 1px 7px; border-radius: 999px; }
 
 .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
@@ -177,7 +176,7 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
   .barra-fixa .botao { width: 100%; }
 }
 /* dados de quem vende, que a lei do comércio eletrônico pede no site */
-.duvidas { max-width: 1320px; margin: 32px auto 0; }
+.duvidas { margin-top: 8px; }
 .duvidas h2 { font-size: 22px; margin-bottom: 10px; }
 .duvidas details { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); margin-bottom: 8px; max-width: 820px; }
 .duvidas summary { cursor: pointer; padding: 14px 16px; font-weight: 700; list-style-position: inside; }
@@ -288,6 +287,7 @@ input[type="text"] { padding: 7px 9px; border: 1px solid var(--linha); border-ra
 .lista-ok li::before { content: "✓"; color: var(--acento); font-weight: 700; }
 .compra { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; border-top: 1px solid var(--linha); padding-top: 14px; }
 .compra .botao.principal { flex: 0 1 auto; }
+@media (max-width: 600px) { .compra .botao.principal { flex: 1 1 100%; } }
 
 input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); min-width: 0; width: 100%; }
 .conta-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }
@@ -519,63 +519,62 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         </div>
       </div>
     </div>
+    <section class="duvidas" id="duvidas" aria-labelledby="duvidas-titulo">
+      <h2 id="duvidas-titulo">Dúvidas frequentes</h2>
+      <details>
+        <summary>O que eu recebo pelos R$ 37?</summary>
+        <p>A escala completa dos 12 meses: quem folga em cada dia, conferida contra as 2 folgas por semana, os domingos e o
+          mínimo de gente por dia. Vem com a planilha de Excel para imprimir e afixar, que fica vermelha se alguém errar uma
+          troca, e a imagem do mês pronta para mandar no WhatsApp da equipe.</p>
+      </details>
+      <details>
+        <summary>É mensalidade?</summary>
+        <p>Não. É um pagamento único, com acesso ilimitado: não tem mensalidade nem data para acabar.</p>
+      </details>
+      <details>
+        <summary>Se alguém sair ou entrar na equipe, preciso pagar de novo?</summary>
+        <p>Não. A escala fica salva na sua conta e você monta de novo quantas vezes quiser, sem pagar de novo.</p>
+      </details>
+      <details>
+        <summary>O que é grátis?</summary>
+        <p>O cálculo de quantas pessoas a regra das 2 folgas pede, quantas faltam contratar e a prévia da primeira semana
+          da escala. O resto do ano, o Excel e a imagem abrem na versão completa.</p>
+      </details>
+      <details>
+        <summary>Serve para comércio? E os domingos?</summary>
+        <p>Serve. No item 3 você escolhe o ramo: no comércio, cada pessoa folga um domingo a cada 3 semanas (Lei 10.101);
+          na indústria, no transporte e nos serviços, a cada 7 semanas (Portaria MTP 671/2021). Se a sua empresa se enquadra
+          no art. 386 da CLT, as mulheres folgam em domingos alternados, e o app monta a escala assim.</p>
+      </details>
+      <details>
+        <summary>E a convenção coletiva do meu sindicato?</summary>
+        <p>Se a convenção ou o acordo coletivo tiver regra própria, como mais domingos de folga, ela vale. O app não lê a
+          sua convenção: confira antes de aplicar a escala e, na dúvida, fale com o seu contador.</p>
+      </details>
+      <details>
+        <summary>Os nomes da minha equipe ficam guardados? Quem vê?</summary>
+        <p>Enquanto você calcula e vê a prévia, tudo acontece no seu aparelho: os nomes não vão para o nosso servidor.
+          Depois da compra, a escala fica salva na sua conta para você voltar, e só você vê. Se preferir, use só o primeiro
+          nome, um apelido ou as iniciais. <a href="privacidade.html">Política de Privacidade</a>.</p>
+      </details>
+      <details>
+        <summary>Como eu pago?</summary>
+        <p>Por Pix ou cartão, à vista, no ambiente seguro do Mercado Pago. Os dados do cartão ficam no Mercado Pago e não
+          passam por nós. O acesso é liberado assim que o pagamento é confirmado.</p>
+      </details>
+      <details>
+        <summary>E se não servir para mim?</summary>
+        <p>Você tem garantia de 7 dias. Em <b>Minha conta</b>, toque em "Cancelar e receber o dinheiro de volta": no Pix o
+          valor volta na hora, e no cartão o estorno aparece na fatura. Não precisa explicar o motivo. Se tiver qualquer
+          problema, escreva para <a href="mailto:gabriel@carvalhoia.com">gabriel@carvalhoia.com</a>.</p>
+      </details>
+      <details>
+        <summary>Precisa instalar alguma coisa?</summary>
+        <p>Não. Funciona no navegador, no celular ou no computador. A conta é a mesma nos dois.</p>
+      </details>
+    </section>
   </section>
 </main>
-
-<section class="duvidas" id="duvidas" aria-labelledby="duvidas-titulo">
-  <h2 id="duvidas-titulo">Dúvidas frequentes</h2>
-  <details>
-    <summary>O que eu recebo pelos R$ 37?</summary>
-    <p>A escala completa dos 12 meses: quem folga em cada dia, conferida contra as 2 folgas por semana, os domingos e o
-      mínimo de gente por dia. Vem com a planilha de Excel para imprimir e afixar, que fica vermelha se alguém errar uma
-      troca, e a imagem do mês pronta para mandar no WhatsApp da equipe.</p>
-  </details>
-  <details>
-    <summary>É mensalidade?</summary>
-    <p>Não. É um pagamento único, com acesso ilimitado: não tem mensalidade nem data para acabar.</p>
-  </details>
-  <details>
-    <summary>Se alguém sair ou entrar na equipe, preciso pagar de novo?</summary>
-    <p>Não. A escala fica salva na sua conta e você monta de novo quantas vezes quiser, sem pagar de novo.</p>
-  </details>
-  <details>
-    <summary>O que é grátis?</summary>
-    <p>O cálculo de quantas pessoas a regra das 2 folgas pede, quantas faltam contratar e a prévia da primeira semana
-      da escala. O resto do ano, o Excel e a imagem abrem na versão completa.</p>
-  </details>
-  <details>
-    <summary>Serve para comércio? E os domingos?</summary>
-    <p>Serve. No item 3 você escolhe o ramo: no comércio, cada pessoa folga um domingo a cada 3 semanas (Lei 10.101);
-      na indústria, no transporte e nos serviços, a cada 7 semanas (Portaria MTP 671/2021). Se a sua empresa se enquadra
-      no art. 386 da CLT, as mulheres folgam em domingos alternados, e o app monta a escala assim.</p>
-  </details>
-  <details>
-    <summary>E a convenção coletiva do meu sindicato?</summary>
-    <p>Se a convenção ou o acordo coletivo tiver regra própria, como mais domingos de folga, ela vale. O app não lê a
-      sua convenção: confira antes de aplicar a escala e, na dúvida, fale com o seu contador.</p>
-  </details>
-  <details>
-    <summary>Os nomes da minha equipe ficam guardados? Quem vê?</summary>
-    <p>Enquanto você calcula e vê a prévia, tudo acontece no seu aparelho: os nomes não vão para o nosso servidor.
-      Depois da compra, a escala fica salva na sua conta para você voltar, e só você vê. Se preferir, use só o primeiro
-      nome, um apelido ou as iniciais. <a href="privacidade.html">Política de Privacidade</a>.</p>
-  </details>
-  <details>
-    <summary>Como eu pago?</summary>
-    <p>Por Pix ou cartão, à vista, no ambiente seguro do Mercado Pago. Os dados do cartão ficam no Mercado Pago e não
-      passam por nós. O acesso é liberado assim que o pagamento é confirmado.</p>
-  </details>
-  <details>
-    <summary>E se não servir para mim?</summary>
-    <p>Você tem garantia de 7 dias. Em <b>Minha conta</b>, toque em "Cancelar e receber o dinheiro de volta": no Pix o
-      valor volta na hora, e no cartão o estorno aparece na fatura. Não precisa explicar o motivo. Se tiver qualquer
-      problema, escreva para <a href="mailto:gabriel@carvalhoia.com">gabriel@carvalhoia.com</a>.</p>
-  </details>
-  <details>
-    <summary>Precisa instalar alguma coisa?</summary>
-    <p>Não. Funciona no navegador, no celular ou no computador. A conta é a mesma nos dois.</p>
-  </details>
-</section>
 
 <footer class="rodape">
   <p><b>Escala Certa</b> · um produto CarvalhoIA Desenvolvimento</p>

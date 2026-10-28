@@ -181,10 +181,12 @@ def pedir_codigo(email, ip, enviar):
         rec_id = con.execute("INSERT INTO recuperacoes (usuario_id, codigo_hash, expira, criado) VALUES (%s, '', %s, %s) RETURNING id",
                              (u["id"], banco.agora() + timedelta(minutes=CODIGO_VALIDADE_MIN), banco.agora())).fetchone()["id"]
         con.execute("UPDATE recuperacoes SET codigo_hash = %s WHERE id = %s", (_hash_codigo(rec_id, codigo), rec_id))
-    enviar(u["email"], f"Seu código para criar uma nova senha: {codigo}",
+    # o código vem primeiro no assunto: aparece já na notificação do celular
+    enviar(u["email"], f"{codigo} é o seu código da Escala Certa",
            f"Olá!\nSeu código para criar uma nova senha na Escala Certa é: {codigo}\n"
            f"Ele vale por {CODIGO_VALIDADE_MIN} minutos.\n"
-           "Se não foi você que pediu, ignore este e-mail: a sua senha continua a mesma.")
+           "Se não foi você que pediu, ignore este e-mail: a sua senha continua a mesma.",
+           codigo=codigo, minutos=CODIGO_VALIDADE_MIN)
     banco.log(u["id"], email, ip, "recuperacao_codigo_enviado")
 
 
