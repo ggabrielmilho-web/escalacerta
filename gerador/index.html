@@ -104,6 +104,9 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--acento);
 .status.atencao { border-left-color: var(--aviso); }
 .status h2 { font-size: 22px; font-weight: 800; }
 .status p { margin: 0; }
+.chamada { border-block: 1px solid var(--linha); padding-block: 12px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.chamada p { flex: 1 1 260px; }
+@media (max-width: 600px) { .chamada .botao { flex: 1 1 100%; } }
 .checks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 16px; font-size: 14px; }
 .checks li { display: flex; gap: 8px; align-items: baseline; }
 .checks li::before { content: "✓"; color: var(--acento); font-weight: 700; }
@@ -635,6 +638,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   const EVENTOS = {
     calculo: ['calculo_feito', 'ViewContent'],
     recalculo: ['calculo_refeito', null],   // só no GA4: não é etapa do funil da Meta
+    viuPreco: ['viu_preco', null],          // o card de compra apareceu de verdade na tela (só no GA4)
     liberar: ['clique_liberar', 'AddToCart'],
     conta: ['sign_up', 'CompleteRegistration'],
     checkout: ['begin_checkout', 'InitiateCheckout'],
@@ -651,6 +655,17 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   const itemVenda = () => [{ item_id: 'escala-certa-ilimitado', item_name: 'Escala Certa', price: precoVenda(), quantity: 1 }];
   let calculoRastreado = false;
   let calculosNaVisita = 0;
+  // separa "viu o preço e não comprou" de "nem chegou ao preço": uma vez por visita, com metade do card na tela
+  let precoVisto = false;
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((ents, obs) => {
+      if (precoVisto || !ents.some(e => e.isIntersecting) || $('proximo').hidden) return;
+      precoVisto = true;
+      obs.disconnect();
+      const eq = estado.equipe || {};
+      rastreia('viuPreco', { equipe: eq.hoje, faltam: eq.contratadas || 0, value: precoVenda(), currency: 'BRL' });
+    }, { threshold: 0.5 }).observe(document.querySelector('.compra'));
+  }
   const CHAVE_PENDENTE = 'escalaCerta.pendente';
 
   const estado = {
@@ -1093,12 +1108,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const sub = n
       ? 'Você trocou folgas no calendário. As células marcadas mostram onde ajustar.'
       : `${repete} · começa em ${M.ddmm(res.ini)} · conferida nos 12 meses`;
-    el.innerHTML = `<h2>${titulo}</h2>` + placar() + `<p>${sub}</p><ul class="checks">${checks.map(([ok, t]) =>
+    // no celular a prévia e o preço ficam mais de uma tela abaixo: sem esta chamada, quem leu o número ia embora.
+    // Vem antes da lista de conferências para caber na primeira tela depois do cálculo.
+    const chamada = (!n && !estado.liberado ? `<div class="chamada"><p><b>Sua escala dos 12 meses já está montada${eq && eq.contratadas
+        ? `, contando ${eq.contratadas === 1 ? 'a contratação' : `as ${eq.contratadas} contratações`}` : ''}.</b> Veja como fica a primeira semana, de graça.</p>
+        <button type="button" class="botao principal" id="ir-previa">Ver a minha escala ↓</button></div>` : '');
+    el.innerHTML = `<h2>${titulo}</h2>` + placar() + `<p>${sub}</p>` + chamada + `<ul class="checks">${checks.map(([ok, t]) =>
       `<li class="${ok ? '' : 'nao'}">${esc(t)}</li>`).join('')}</ul>` +
       `<div class="cobertura"><span class="rot">Gente trabalhando por dia:</span>${mediaPorDia()}</div>` +
       (n ? `<ul class="problemas">${val.problemas.slice(0, 30).map(p => `<li>${esc(p.texto)}</li>`).join('')}${n > 30 ? `<li>e mais ${n - 30}…</li>` : ''}</ul>` : '') +
       (na ? `<div class="avisos"><b>${na === 1 ? 'Confira' : `Confira (${na})`}</b><ul>${val.avisos.slice(0, 15).map(a => `<li>${esc(a.texto)}</li>`).join('')}` +
         `${na > 15 ? `<li>e mais ${na - 15}…</li>` : ''}</ul></div>` : '');
+    const ir = $('ir-previa');
+    if (ir) ir.addEventListener('click', () => $('proximo').scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   function renderFixa() {
