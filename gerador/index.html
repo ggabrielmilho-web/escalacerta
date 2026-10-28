@@ -307,6 +307,17 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 .dlg h2 { font-size: 22px; font-weight: 800; padding-right: 28px; }
 .dlg #dlg-sub { margin: 6px 0 14px; }
 .dlg-fechar { position: absolute; top: 12px; right: 12px; margin: 0; }
+/* prévia da imagem do WhatsApp: a pessoa confere antes de mandar ou baixar */
+.dlg-img { width: min(560px, calc(100vw - 24px)); padding: 20px 16px 16px; }
+.dlg-img #img-sub { margin: 4px 0 10px; }
+.img-quadro { max-height: 62vh; overflow: auto; border: 1px solid var(--linha); border-radius: 8px; background: #f3f5f1; -webkit-overflow-scrolling: touch; }
+.img-quadro img { display: block; width: 100%; height: auto; -webkit-touch-callout: default; cursor: zoom-in; }
+/* ampliada: o dobro da largura do quadro, para ler os nomes; o quadro rola para os lados */
+.img-quadro.zoom img { width: 200%; max-width: none; height: auto; cursor: zoom-out; }
+#img-dica { margin: 8px 0 0; }
+.img-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.img-botoes .botao { flex: 1 1 180px; }
+.dlg-img .aviso-copia { margin-top: 10px; }
 .campos { display: flex; flex-direction: column; gap: 12px; }
 .campos label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); font-weight: 700; }
 .campos .botao.principal { margin-top: 4px; }
@@ -493,7 +504,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         </div>
         <div class="grupo">
           <select id="img-quem" aria-label="Imagem de quem: equipe toda ou uma pessoa"></select>
-          <button type="button" class="botao" id="imagem">Imagem do mês p/ WhatsApp</button>
+          <button type="button" class="botao" id="imagem">Ver imagem do mês p/ WhatsApp</button>
           <button type="button" class="botao" id="copiar">Copiar texto</button>
         </div>
       </div>
@@ -589,6 +600,20 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   <p class="links-rodape"><span id="link-duvidas" hidden><a href="#duvidas">Dúvidas frequentes</a> · </span><a href="termos.html">Termos de Uso</a> ·
     <a href="privacidade.html">Política de Privacidade</a></p>
 </footer>
+
+<dialog class="dlg dlg-img" id="dlg-imagem" aria-labelledby="img-titulo">
+  <form method="dialog" class="dlg-fechar"><button class="tirar" aria-label="Fechar">✕</button></form>
+  <h2 id="img-titulo">Imagem do mês</h2>
+  <p class="nota" id="img-sub">Confira antes de mandar para a equipe.</p>
+  <div class="img-quadro"><img id="img-previa" alt="Prévia da imagem da escala do mês"></div>
+  <p class="nota" id="img-dica"></p>
+  <div class="img-botoes">
+    <button type="button" class="botao principal" id="img-enviar">Enviar no WhatsApp</button>
+    <button type="button" class="botao principal" id="img-copiar">Copiar imagem</button>
+    <button type="button" class="botao" id="img-baixar">Baixar imagem</button>
+  </div>
+  <p class="aviso-copia" id="img-aviso" role="status" hidden></p>
+</dialog>
 
 <dialog class="dlg" id="dlg-conta" aria-labelledby="dlg-titulo">
   <form method="dialog" class="dlg-fechar"><button class="tirar" aria-label="Fechar">✕</button></form>
@@ -1895,10 +1920,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   function nomeArquivo(txt) {
     return txt.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
-  function avisar(msg) {
-    const aviso = $('aviso-copia');
-    aviso.hidden = false; aviso.textContent = msg;
-    setTimeout(() => { aviso.hidden = true; }, 5000);
+  // a imagem abre numa janela para a pessoa conferir; dali ela manda no WhatsApp, copia ou baixa
+  const imgAtual = { blob: null, arq: null, nome: '', url: '', mes: '' };
+  const celular = () => window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  function avisoImg(msg) {
+    const el = $('img-aviso');
+    el.hidden = !msg; el.textContent = msg || '';
   }
   $('imagem').addEventListener('click', async () => {
     const res = estado.res, cfg = res.cfg, mes = estado.meses[estado.mes], quem = $('img-quem').value;
@@ -1914,27 +1941,60 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const todos = quem === 'todos';
       const cv = todos ? imagemEquipe(res, cfg, mes, fer, ferMes) : imagemPessoa(res, cfg, mes, fer, ferMes, +quem);
       const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
-      const nome = `escala-${nomeArquivo(todos ? 'equipe' : cfg.nomes[+quem])}-${nomeArquivo(mes.rotulo)}.png`;
-      const arq = new File([blob], nome, { type: 'image/png' });
-      // no celular abre o "Compartilhar" (WhatsApp aparece na lista); no computador baixa a imagem,
-      // para arrastar no WhatsApp Web (a janela de compartilhar do Windows só atrapalha)
-      const celular = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-      if (celular && navigator.canShare && navigator.canShare({ files: [arq] })) {
-        try {
-          await navigator.share({ files: [arq], title: `Escala de ${mes.rotulo}` });
-          return;
-        } catch (err) {
-          if (err && err.name === 'AbortError') return;
-        }
-      }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = nome;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      avisar('Imagem baixada. É só anexar no WhatsApp.');
+      if (imgAtual.url) URL.revokeObjectURL(imgAtual.url);
+      imgAtual.blob = blob;
+      imgAtual.nome = `escala-${nomeArquivo(todos ? 'equipe' : cfg.nomes[+quem])}-${nomeArquivo(mes.rotulo)}.png`;
+      imgAtual.arq = new File([blob], imgAtual.nome, { type: 'image/png' });
+      imgAtual.url = URL.createObjectURL(blob);
+      imgAtual.mes = mes.rotulo;
+      $('img-titulo').textContent = `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${cfg.nomes[+quem]}`);
+      $('img-previa').src = imgAtual.url;
+      $('img-previa').closest('.img-quadro').classList.remove('zoom');
+      $('img-sub').textContent = 'Confira antes de mandar para a equipe. Toque na imagem para ampliar.';
+      // no celular, "Enviar" abre o Compartilhar (o WhatsApp aparece na lista); no computador, copiar e colar
+      // no WhatsApp Web é o caminho mais curto (a janela de compartilhar do Windows só atrapalha)
+      const podeEnviar = celular() && navigator.canShare && navigator.canShare({ files: [imgAtual.arq] });
+      const podeCopiar = !celular() && navigator.clipboard && window.ClipboardItem;
+      $('img-enviar').hidden = !podeEnviar;
+      $('img-copiar').hidden = !podeCopiar;
+      $('img-dica').textContent = podeEnviar ? ''
+        : podeCopiar ? 'Copie e cole com Ctrl+V na conversa do WhatsApp Web, ou baixe e anexe.'
+        // navegador do Instagram/Facebook: sem Compartilhar, e o download às vezes falha; a imagem na tela sempre serve
+        : 'Segure o dedo na imagem para salvar ou enviar. Se preferir, toque em Baixar imagem.';
+      avisoImg('');
+      if (!$('dlg-imagem').open) $('dlg-imagem').showModal();
     } finally {
       btn.disabled = false;
     }
+  });
+  $('img-previa').addEventListener('click', () => {
+    const q = $('img-previa').closest('.img-quadro');
+    q.classList.toggle('zoom');
+    // ao ampliar, começa pelo canto dos nomes (à esquerda) e do título (no alto)
+    q.scrollLeft = 0; q.scrollTop = 0;
+  });
+  $('img-enviar').addEventListener('click', async () => {
+    try {
+      await navigator.share({ files: [imgAtual.arq], title: `Escala de ${imgAtual.mes}` });
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;          // a pessoa desistiu no Compartilhar
+      avisoImg('Não consegui abrir o Compartilhar. Segure o dedo na imagem para enviar ou toque em Baixar imagem.');
+    }
+  });
+  $('img-copiar').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': imgAtual.blob })]);
+      $('img-aviso').innerHTML = 'Imagem copiada. Abra a conversa no <a href="https://web.whatsapp.com" target="_blank" rel="noopener">WhatsApp Web</a> e cole com Ctrl+V.';
+      $('img-aviso').hidden = false;
+    } catch (_) {
+      avisoImg('Este navegador não deixou copiar a imagem. Toque em Baixar imagem e anexe no WhatsApp.');
+    }
+  });
+  $('img-baixar').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = imgAtual.url; a.download = imgAtual.nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    avisoImg('Imagem baixada. É só anexar no WhatsApp.');
   });
 
   $('copiar').addEventListener('click', () => {
