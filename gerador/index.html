@@ -519,7 +519,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         </div>
       </div>
     </div>
-    <section class="duvidas" id="duvidas" aria-labelledby="duvidas-titulo">
+    <section class="duvidas" id="duvidas" aria-labelledby="duvidas-titulo" hidden>
       <h2 id="duvidas-titulo">Dúvidas frequentes</h2>
       <details>
         <summary>O que eu recebo pelos R$ 37?</summary>
@@ -580,7 +580,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   <p><b>Escala Certa</b> · um produto CarvalhoIA Desenvolvimento</p>
   <p>CNPJ 64.942.407/0001-10 · Gabriel França Carvalho (MEI) · Uberlândia/MG ·
     <a href="mailto:gabriel@carvalhoia.com">gabriel@carvalhoia.com</a></p>
-  <p class="links-rodape"><a href="#duvidas">Dúvidas frequentes</a> · <a href="termos.html">Termos de Uso</a> ·
+  <p class="links-rodape"><span id="link-duvidas" hidden><a href="#duvidas">Dúvidas frequentes</a> · </span><a href="termos.html">Termos de Uso</a> ·
     <a href="privacidade.html">Política de Privacidade</a></p>
 </footer>
 
@@ -952,6 +952,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   // ---------- desenho ----------
   function render() {
     $('como').hidden = true;
+    // as dúvidas falam de preço: só aparecem depois que a pessoa já viu o resultado do cálculo
+    $('duvidas').hidden = false;
+    $('link-duvidas').hidden = false;
     $('status').hidden = false;
     renderStatus();
     const ok = estado.res && estado.res.ok;
