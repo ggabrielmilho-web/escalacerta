@@ -794,14 +794,16 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   }
   const CHAVE_PENDENTE = 'escalaCerta.pendente';
 
+  const EXEMPLO = ['Ana', 'Bruno', 'Carla', 'Diego', 'Elisa'];
   const estado = {
     // exemplo de 5: com o mínimo sugerido falta 1 contratação, que é o que chama a atenção (o de 3 dava conta)
-    pessoas: ['Ana', 'Bruno', 'Carla', 'Diego', 'Elisa'].map(nome => ({ nome, sexo: '' })),
+    pessoas: EXEMPLO.map(nome => ({ nome, sexo: '' })),
     res: null, grade: null, val: null, equipe: null, jaMontou: false,
     maxSeguidos: 5,            // 5 sempre; 6 só quando o cliente aceita a sugestão (a lei permite)
     semente: 0, liberado: false, visao: 'pessoa', mes: 0, meses: [],
     folgas: 'juntas',          // gosto da empresa, escolhido na própria escala: as 2 folgas emendadas ou separadas
     turnos: null,              // [{ nome }] com turnos fixos; null = equipe única
+    exemploTurnos: false,      // marcou turnos sem mexer no exemplo: vale o exemplo de turnos até mudar a equipe
   };
 
   // ---------- formulário: equipe ----------
@@ -814,6 +816,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   // dos turnos: o motor monta cada turno à parte e as telas mostram um bloco por turno.
   const TURNOS_PADRAO = ['Manhã', 'Intermediário', 'Noite', 'Madrugada', 'Turno 5'];
   const MAX_TURNOS = 5;
+  // Exemplo de turnos (quem marca "Sim" sem ter mexido no exemplo): 3 turnos de 3 pessoas, 2 trabalhando de
+  // segunda a quinta e no domingo e o turno inteiro na sexta e no sábado, o pico. No 6x1 fecha (as folgas
+  // caem no começo da semana); no 5x2 falta 1 em cada turno. Com 3 pessoas, a operação de hoje (2 por dia)
+  // não faltaria ninguém e o exemplo não mostraria nada.
+  const EXEMPLO_TURNOS = { pessoas: 3, minimo: [2, 2, 2, 2, 3, 3, 2] };
+  const exemploIntocado = () => estado.pessoas.length === EXEMPLO.length &&
+    estado.pessoas.every((p, i) => p.nome === EXEMPLO[i] && !p.sexo);
   const comTurnos = () => !!estado.turnos;
   const nomeTurno = t => (estado.turnos[t].nome || '').trim() || `Turno ${t + 1}`;
   const doTurnoIdx = t => estado.pessoas.map((p, i) => (p.turno === t ? i : -1)).filter(i => i >= 0);
@@ -823,14 +832,22 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   function ligarTurnos(sim) {
     if (sim === comTurnos()) return;
     if (sim) {
-      // a equipe que já está na tela vai dividida em 3 turnos; ninguém fica de fora nem turno vazio
       estado.turnos = TURNOS_PADRAO.slice(0, 3).map(nome => ({ nome }));
-      while (estado.pessoas.length < 3) estado.pessoas.push({ nome: '', sexo: '' });
-      const n = estado.pessoas.length, T = estado.turnos.length;
-      estado.pessoas.forEach((p, i) => { p.turno = Math.min(T - 1, Math.floor((i * T) / n)); });
+      estado.exemploTurnos = exemploIntocado();
+      if (estado.exemploTurnos) {
+        // sem nomes: o líder só ajusta quantas pessoas tem em cada turno ("Manhã 1, Manhã 2…")
+        estado.pessoas = estado.turnos.flatMap((_, t) => Array.from({ length: EXEMPLO_TURNOS.pessoas }, () => ({ nome: '', sexo: '', turno: t })));
+      } else {
+        // a equipe que já está na tela vai dividida em 3 turnos; ninguém fica de fora nem turno vazio
+        while (estado.pessoas.length < 3) estado.pessoas.push({ nome: '', sexo: '' });
+        const n = estado.pessoas.length, T = estado.turnos.length;
+        estado.pessoas.forEach((p, i) => { p.turno = Math.min(T - 1, Math.floor((i * T) / n)); });
+      }
     } else {
       estado.turnos = null;
-      estado.pessoas.forEach(p => { delete p.turno; });
+      if (estado.exemploTurnos) estado.pessoas = EXEMPLO.map(nome => ({ nome, sexo: '' }));   // volta ao exemplo de sempre
+      else estado.pessoas.forEach(p => { delete p.turno; });
+      estado.exemploTurnos = false;
     }
     estado.minimoManual = false;
     renderDias();
@@ -889,6 +906,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     renderPessoas();
   }
   function tamanhoTurno(t, n) {
+    estado.exemploTurnos = false;
     n = Math.max(0, Math.min(500, n | 0));
     const idx = doTurnoIdx(t);
     if (n === idx.length) return;
@@ -926,11 +944,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const b = ev.target.closest('[data-tirar], [data-tirar-turno], [data-mais-pessoa], [data-colar-turno]');
     if (!b) return;
     if (b.dataset.tirar !== undefined) {
+      estado.exemploTurnos = false;
       estado.pessoas.splice(+b.dataset.tirar, 1);
       renderPessoas();
     } else if (b.dataset.tirarTurno !== undefined) {
       const t = +b.dataset.tirarTurno, n = doTurnoIdx(t).length;
       if (n && !window.confirm(`Tirar o turno ${nomeTurno(t)} e as ${plural(n, 'pessoa', 'pessoas')} dele?`)) return;
+      estado.exemploTurnos = false;
       estado.pessoas = estado.pessoas.filter(p => p.turno !== t);
       estado.pessoas.forEach(p => { if (p.turno > t) p.turno--; });
       estado.turnos.splice(t, 1);
@@ -953,6 +973,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   });
   $('adicionar-turno').addEventListener('click', () => {
     if (estado.turnos.length >= MAX_TURNOS) return;
+    estado.exemploTurnos = false;
     const usados = new Set(estado.turnos.map(x => x.nome));
     estado.turnos.push({ nome: TURNOS_PADRAO.find(n => !usados.has(n)) || `Turno ${estado.turnos.length + 1}` });
     estado.pessoas.push({ nome: '', sexo: '', turno: estado.turnos.length - 1 });
@@ -978,6 +999,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   $('usar-colar').addEventListener('click', () => {
     const nomes = $('colar').value.split('\n').map(s => s.trim()).filter(Boolean);
     if (!nomes.length) return;
+    estado.exemploTurnos = false;
     if (colarTurno === null) {
       estado.pessoas = nomes.map((nome, i) => ({ nome, sexo: (estado.pessoas[i] || {}).sexo || '' }));
     } else {
@@ -1043,10 +1065,17 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   function aplicarSugestao() {
     const domAberto = $('ab-6').checked && [0, 1, 2, 3, 4, 5].every(i => $(`ab-${i}`).checked);
     if (comTurnos()) {
+      if (estado.exemploTurnos) {
+        estado.turnos.forEach((_, t) => EXEMPLO_TURNOS.minimo.forEach((v, i) => { $(`mt-${t}-${i}`).value = v; }));
+        $('dica-minimo').innerHTML = '<b>Exemplo:</b> 3 turnos de 3 pessoas, com 2 trabalhando de segunda a quinta e no domingo ' +
+          'e o turno inteiro na sexta e no sábado, o pico. No 6x1 isso fecha; no 5x2, falta gente. ' +
+          'Troque pelas pessoas e pelos mínimos da sua loja.';
+        return;
+      }
       // cada turno começa com a própria operação de hoje
       estado.turnos.forEach((_, t) => operacaoDeHoje(doTurnoIdx(t).length).forEach((v, i) => { $(`mt-${t}-${i}`).value = v; }));
-      $('dica-minimo').innerHTML = 'Cada turno começa com a sua <b>operação de hoje no 6x1</b>: todo mundo do turno trabalhando' +
-        (domAberto ? ', menos quem folga no domingo' : '') + '. Ajuste dia a dia se for diferente: é com esses números que o app diz quantas pessoas faltam em cada turno.';
+      $('dica-minimo').innerHTML = 'Cada turno começa com a sua <b>operação de hoje no 6x1</b>, cada pessoa trabalhando 6 dias' +
+        (domAberto ? ' e folgando no domingo quando chega a vez dela' : '') + '. Ajuste dia a dia se for diferente: é com esses números que o app diz quantas pessoas faltam em cada turno.';
       return;
     }
     const n = estado.pessoas.length, sug = operacaoDeHoje(n);
@@ -1745,6 +1774,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         podeFolgar: [0, 1, 2, 3, 4, 5, 6].map(i => $(`fo-${i}`).checked),
         inicio: $('inicio').value, maxSeguidos: estado.maxSeguidos, folgas: estado.folgas,
         minimoManual: !!estado.minimoManual,      // na volta: mínimo editado fica; sugestão volta a acompanhar a equipe
+        exemploTurnos: !!estado.exemploTurnos,
         turnos: comTurnos() ? estado.turnos.map((x, t) => ({ nome: x.nome, minimo: [0, 1, 2, 3, 4, 5, 6].map(i => $(`mt-${t}-${i}`).value) })) : null,
       },
       semente: estado.semente, res: estado.res, grade: estado.grade, equipe: estado.equipe, mes: estado.mes, visao: estado.visao,
@@ -1770,6 +1800,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     // só fica fixo o mínimo que a pessoa editou; sugestão (ou escala salva antes desta marca) volta a
     // acompanhar o tamanho da equipe
     estado.minimoManual = f.minimoManual === true;
+    estado.exemploTurnos = f.exemploTurnos === true && !!f.turnos;
     renderPessoas(); atualizaFechados();
     if (!s.res || !s.res.ok) return;
     estado.res = s.res; estado.grade = s.grade; estado.equipe = s.equipe; estado.visao = s.visao || 'pessoa';
