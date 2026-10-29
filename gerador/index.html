@@ -191,7 +191,7 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 /* dados de quem vende, que a lei do comércio eletrônico pede no site */
 .duvidas { margin-top: 8px; }
 .duvidas h2 { font-size: 22px; margin-bottom: 10px; }
-.duvidas details { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); margin-bottom: 8px; max-width: 820px; }
+.duvidas details { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); margin-bottom: 8px; }
 .duvidas summary { cursor: pointer; padding: 14px 16px; font-weight: 700; list-style-position: inside; }
 .duvidas details[open] summary { border-bottom: 1px solid var(--linha); }
 .duvidas details p { margin: 0; padding: 12px 16px 14px; color: var(--tinta-2); }
@@ -1102,7 +1102,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   // placar: hoje · a regra pede · faltam (ou dá conta / sobra)
   function placar() {
     const eq = estado.equipe;
-    if (!eq) return '';
+    if (!eq) return { placar: '', notas: '' };
     const pede = eq.hoje + eq.contratadas - (eq.sobra || 0);
     const falta = n => (n === 1 ? 'Falta 1 pessoa' : `Faltam ${n} pessoas`);
     let terceiro;
@@ -1129,9 +1129,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         : '<b>Sua equipe já dá conta da operação de hoje no 5x2.</b> ') +
         'A conta parte do que você tem hoje no 6x1. Se a operação for diferente, ajuste os mínimos (item 2) e clique em Atualizar escala.</p></div>'
       : '';
-    return `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>A regra pede</span><b>${pedeTxt}</b></div>${terceiro}</div>` +
-      intocado + (nota ? `<p class="nota">${esc(nota)}</p>` : '') +
-      (eq.contratadas ? '<p class="nota">A conta não inclui férias e atestados: no mês em que alguém se afasta, a escala precisa de outro arranjo ou de um temporário.</p>' : '');
+    // as notas saem à parte: o renderStatus põe depois da chamada, senão o botão cai para fora da 1ª tela do celular
+    return {
+      placar: `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>A regra pede</span><b>${pedeTxt}</b></div>${terceiro}</div>` + intocado,
+      notas: (nota ? `<p class="nota">${esc(nota)}</p>` : '') +
+        (eq.contratadas ? '<p class="nota">A conta não inclui férias e atestados: no mês em que alguém se afasta, a escala precisa de outro arranjo ou de um temporário.</p>' : ''),
+    };
   }
 
   function renderStatus() {
@@ -1182,7 +1185,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const chamada = (!n && !estado.liberado ? `<div class="chamada"><p><b>Sua escala dos 12 meses já está montada${eq && eq.contratadas
         ? `, contando ${eq.contratadas === 1 ? 'a contratação' : `as ${eq.contratadas} contratações`}` : ''}.</b> Veja como fica a primeira semana, de graça.</p>
         <button type="button" class="botao principal" id="ir-previa">Ver a minha escala ↓</button></div>` : '');
-    el.innerHTML = `<h2>${titulo}</h2>` + placar() + `<p>${sub}</p>` + chamada + `<ul class="checks">${checks.map(([ok, t]) =>
+    const pl = placar();
+    el.innerHTML = `<h2>${titulo}</h2>` + pl.placar + `<p>${sub}</p>` + chamada + pl.notas + `<ul class="checks">${checks.map(([ok, t]) =>
       `<li class="${ok ? '' : 'nao'}">${esc(t)}</li>`).join('')}</ul>` +
       `<div class="cobertura"><span class="rot">Gente trabalhando por dia:</span>${mediaPorDia()}</div>` +
       (n ? `<ul class="problemas">${val.problemas.slice(0, 30).map(p => `<li>${esc(p.texto)}</li>`).join('')}${n > 30 ? `<li>e mais ${n - 30}…</li>` : ''}</ul>` : '') +
