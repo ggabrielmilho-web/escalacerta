@@ -22,7 +22,7 @@ for (let caso = 0; caso < 600; caso++) {
     podeFolgar: Array.from({ length: 7 }, () => rnd() < 0.8),
     minimo: Array.from({ length: 7 }, () => Math.floor(N * (0.3 + rnd() * 0.45))),
     maxSeguidos: rnd() < 0.5 ? 5 : 6, domingoCada: rnd() < 0.5 ? 3 : 7,
-    inicio: '2026-12-14', fim: '2027-12-13',
+    inicio: '2026-12-14', fim: '2027-12-13', folgas: caso % 3 ? 'juntas' : 'separadas',
   };
   const r = M.montar(cfg, caso % 2);
   if (!r.ok) { recusadas++; continue; }
@@ -53,6 +53,29 @@ for (const [N, esperado] of [[10, 2], [50, 10], [100, 20]]) {
 }
 const impossivel = M.montar({ ...base, nomes: ['A', 'B', 'C'], minimo: [2, 3, 3, 3, 3, 2, 1], podeFolgar: [1, 0, 0, 0, 0, 1, 1].map(Boolean) }, 0);
 confere(!impossivel.ok && impossivel.erros[0].titulo === 'As folgas não cabem', 'folga só sáb/dom/seg com segunda 2: não cabe');
+
+// 2b) Desenho das folgas: o exemplo da página sai sem 3 folgas seguidas e sem "folga, trabalha 1 dia, folga"
+//     (nem na volta do rodízio); "separadas" emenda menos que "juntas"; e o gosto não muda quantos faltam.
+console.log('2b) folgas juntas ou separadas');
+const desenhoFolgas = r => {
+  let tres = 0, um = 0, emendadas = 0;
+  for (const l of r.grade) {
+    const t = l.filter(x => x !== null).join('');
+    for (const m of t.matchAll(/[FX]{2,}/g)) (m[0].length >= 3 ? tres++ : emendadas++);
+    um += (t.match(/(?<=[FX])T(?=[FX])/g) || []).length;
+  }
+  return { tres, um, emendadas };
+};
+const exemplo = { ...base, maxSeguidos: 5, nomes: ['Ana', 'Bruno', 'Carla', 'Diego', 'Elisa'], minimo: [3, 3, 3, 3, 3, 3, 2] };
+const dJ = desenhoFolgas(M.montar({ ...exemplo, folgas: 'juntas' }, 0));
+const dS = desenhoFolgas(M.montar({ ...exemplo, folgas: 'separadas' }, 0));
+confere(!dJ.tres && !dJ.um, `exemplo, folgas juntas: ${dJ.tres} vezes 3 folgas seguidas, ${dJ.um} folga-1 dia-folga`);
+confere(!dS.tres && !dS.um, `exemplo, folgas separadas: ${dS.tres} vezes 3 folgas seguidas, ${dS.um} folga-1 dia-folga`);
+confere(dS.emendadas < dJ.emendadas / 2, `separadas emenda menos (${dS.emendadas}) que juntas (${dJ.emendadas})`);
+confere(M._interno.normalizar({ ...exemplo }).folgas === 'juntas', 'sem escolha, as folgas vêm juntas');
+for (const folgas of ['juntas', 'separadas']) {
+  confere(M.faltam({ ...loja, art386: true, folgas }, 'M') === 1, `folgas ${folgas}: a loja com art. 386 continua faltando 1`);
+}
 
 // 3) Datas: Sexta-feira Santa (Páscoa pelo algoritmo de Meeus) e feriados do período
 console.log('3) feriados');

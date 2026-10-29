@@ -163,6 +163,7 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .alterna { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: 8px; overflow: hidden; }
 .alterna button { border: 0; background: var(--cartao); padding: 7px 12px; cursor: pointer; font-weight: 700; font-size: 14px; }
 .alterna button[aria-pressed="true"] { background: var(--tinta); color: var(--papel); }
+.alterna.folgas button { padding: 5px 10px; font-size: 13px; }      /* do tamanho do "Ver outra opção", ao lado dele */
 .levar .acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 24px; }
 .levar .acao { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
 .levar .rot { font-size: 13px; font-weight: 700; color: var(--tinta-2); }
@@ -294,6 +295,11 @@ input[type="text"] { padding: 7px 9px; border: 1px solid var(--linha); border-ra
 .turno-topo .turno-nome { flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 15px; }
 .turno-qtd { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--tinta-2); font-weight: 700; }
 .turno-qtd input { width: 64px; text-align: center; font-family: var(--mono); font-weight: 600; }
+@media (max-width: 400px) {            /* o nome do turno ("Intermediário") cabe inteiro no celular pequeno */
+  .turno-topo { gap: 6px; }
+  .turno-qtd { gap: 4px; font-size: 12px; }
+  .turno-qtd input { width: 50px; padding-inline: 4px; }
+}
 .turno-pessoas { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; padding-right: 2px; }
 .tirar { border: 0; background: none; color: var(--tinta-2); cursor: pointer; font-size: 15px; padding: 4px 6px; border-radius: 6px; }
 .tirar:hover { color: var(--erro); background: var(--erro-fundo); }
@@ -501,7 +507,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     <div class="cartao proximo" id="proximo" hidden>
       <div class="cabeca-cartao">
         <span class="eyebrow">Sua próxima etapa</span>
-        <button type="button" class="botao pequeno" id="outra">Ver outra opção de rodízio</button>
+        <div class="grupo">
+          <div class="alterna folgas" role="group" aria-label="Como ficam as 2 folgas da semana">
+            <button type="button" data-folgas="juntas" aria-pressed="true">Folgas emendadas</button>
+            <button type="button" data-folgas="separadas" aria-pressed="false">Separadas</button>
+          </div>
+          <button type="button" class="botao pequeno" id="outra">Ver outra opção de rodízio</button>
+        </div>
       </div>
       <h3 id="prox-titulo"></h3>
       <p id="prox-texto"></p>
@@ -585,7 +597,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       <div class="cartao" id="cartao-fixa">
         <div class="cabeca-cartao">
           <h3 id="fixa-titulo">Escala fixa</h3>
-          <button type="button" class="botao pequeno" id="outra2">Ver outra opção de rodízio</button>
+          <div class="grupo">
+            <div class="alterna folgas" role="group" aria-label="Como ficam as 2 folgas da semana">
+              <button type="button" data-folgas="juntas" aria-pressed="true">Folgas emendadas</button>
+              <button type="button" data-folgas="separadas" aria-pressed="false">Separadas</button>
+            </div>
+            <button type="button" class="botao pequeno" id="outra2">Ver outra opção de rodízio</button>
+          </div>
         </div>
         <p class="nota" id="fixa-sub"></p>
         <div class="moldura"><div class="rolagem-fixa"><table class="fixa" id="fixa"></table></div></div>
@@ -627,6 +645,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         <p>Serve. No item 3 você escolhe o ramo: no comércio, cada pessoa folga um domingo a cada 3 semanas (Lei 10.101);
           na indústria, no transporte e nos serviços, a cada 7 semanas (Portaria MTP 671/2021). Se a sua empresa se enquadra
           no art. 386 da CLT, as mulheres folgam em domingos alternados, e o app monta a escala assim.</p>
+      </details>
+      <details>
+        <summary>Minha equipe trabalha em turnos. Serve?</summary>
+        <p>Serve para turno fixo: cada pessoa sempre no mesmo turno, como manhã, intermediário e noite. No item 1, marque
+          "Sim" em "A equipe trabalha em turnos?" e informe quem é de cada turno e o mínimo de gente de cada um. O app diz
+          quantas pessoas faltam em cada turno e monta a escala separada por turno, com imagem de um turno só para o grupo
+          dele. Quem troca de turno durante o mês, 12x36 e plantões ainda não entram.</p>
+      </details>
+      <details>
+        <summary>Dá para deixar as duas folgas separadas?</summary>
+        <p>Dá. Na escala montada, escolha "Folgas emendadas" (dois dias seguidos de descanso, que é o padrão) ou "Separadas".
+          É preferência da empresa: a lei vale igual nos dois. Nos dois casos o app evita, sempre que a escala permite,
+          3 folgas seguidas e folga com só 1 dia de trabalho no meio.</p>
       </details>
       <details>
         <summary>E a convenção coletiva do meu sindicato?</summary>
@@ -769,6 +800,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     res: null, grade: null, val: null, equipe: null, jaMontou: false,
     maxSeguidos: 5,            // 5 sempre; 6 só quando o cliente aceita a sugestão (a lei permite)
     semente: 0, liberado: false, visao: 'pessoa', mes: 0, meses: [],
+    folgas: 'juntas',          // gosto da empresa, escolhido na própria escala: as 2 folgas emendadas ou separadas
     turnos: null,              // [{ nome }] com turnos fixos; null = equipe única
   };
 
@@ -1080,6 +1112,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       minimo: [0, 1, 2, 3, 4, 5, 6].map(i => +$(`mi-${i}`).value || 0),
       podeFolgar: [0, 1, 2, 3, 4, 5, 6].map(i => $(`fo-${i}`).checked),
       maxSeguidos: estado.maxSeguidos,
+      folgas: estado.folgas,
       inicio,
       fim: inicio ? fimDe(inicio) : '',
     }, turnos);
@@ -1269,6 +1302,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   };
   $('outra').addEventListener('click', outraOpcao);
   $('outra2').addEventListener('click', outraOpcao);
+  // folgas emendadas ou separadas: é gosto, não regra; monta de novo com a mesma equipe e o mesmo formulário
+  document.querySelectorAll('.alterna button[data-folgas]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.folgas === estado.folgas) return;
+    if (!podeDescartarTrocas('Mudar as folgas')) return;
+    estado.folgas = b.dataset.folgas; montar('folgas_' + estado.folgas);
+  }));
 
   // ---------- desenho ----------
   function render() {
@@ -1333,7 +1372,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       $(ant).disabled = estado.mes === 0;
       $(prox).disabled = estado.mes === ultimo;
     });
-    document.querySelectorAll('.alterna button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.visao === estado.visao)));
+    document.querySelectorAll('.alterna button[data-visao]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.visao === estado.visao)));
+    document.querySelectorAll('.alterna button[data-folgas]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.folgas === estado.folgas)));
   }
 
   function mediaPorDia(cob) {
@@ -1593,7 +1633,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   // os controles da prévia e do calendário pago mexem no mesmo estado: o formato e o mês escolhidos
   // na prévia continuam valendo depois de pagar
   const redesenharMes = () => (estado.liberado ? renderCalendario() : renderPrevia());
-  document.querySelectorAll('.alterna button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.alterna button[data-visao]').forEach(b => b.addEventListener('click', () => {
     estado.visao = b.dataset.visao;
     redesenharMes();
   }));
@@ -1703,7 +1743,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         aberto: [0, 1, 2, 3, 4, 5, 6].map(i => $(`ab-${i}`).checked),
         minimo: [0, 1, 2, 3, 4, 5, 6].map(i => $(`mi-${i}`).value),
         podeFolgar: [0, 1, 2, 3, 4, 5, 6].map(i => $(`fo-${i}`).checked),
-        inicio: $('inicio').value, maxSeguidos: estado.maxSeguidos,
+        inicio: $('inicio').value, maxSeguidos: estado.maxSeguidos, folgas: estado.folgas,
         minimoManual: !!estado.minimoManual,      // na volta: mínimo editado fica; sugestão volta a acompanhar a equipe
         turnos: comTurnos() ? estado.turnos.map((x, t) => ({ nome: x.nome, minimo: [0, 1, 2, 3, 4, 5, 6].map(i => $(`mt-${t}-${i}`).value) })) : null,
       },
@@ -1725,6 +1765,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     if (f.turnos) f.turnos.forEach((x, t) => x.minimo.forEach((v, i) => { $(`mt-${t}-${i}`).value = v; }));
     $('inicio').value = f.inicio;
     estado.maxSeguidos = f.maxSeguidos || 5;
+    estado.folgas = f.folgas === 'separadas' ? 'separadas' : 'juntas';
     estado.semente = s.semente || 0;
     // só fica fixo o mínimo que a pessoa editou; sugestão (ou escala salva antes desta marca) volta a
     // acompanhar o tamanho da equipe

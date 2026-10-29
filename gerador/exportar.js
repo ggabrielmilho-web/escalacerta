@@ -607,6 +607,8 @@
     if (x.comTurnos) linha('Turnos', 'Cada pessoa fica sempre no mesmo turno. Cada turno tem a própria escala e é conferido contra o próprio mínimo.');
     linha('Dias em que pode haver folga', M.DIAS_LONGOS.filter((_, d) => cfg.aberto[d] && cfg.podeFolgar[d]).join(', '));
     linha('Máximo de dias seguidos', String(K));
+    linha('As 2 folgas da semana', cfg.folgas === 'separadas' ? 'De preferência separadas, sem emendar uma na outra.'
+      : 'De preferência emendadas (2 dias seguidos de descanso).');
     if (cfg.aberto[6]) {
       linha('Domingo de folga', `${S === 3 ? 'Comércio' : 'Indústria, transporte ou serviços'}: pelo menos 1 a cada ${S} semanas.` +
         (cfg.art386 ? ' Art. 386 da CLT: mulheres folgam em domingos alternados.' : ''));

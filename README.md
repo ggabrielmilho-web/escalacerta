@@ -93,7 +93,8 @@ Rode o teste sempre que mexer no `motor.js`.
 ## 4. Como o cliente usa
 
 1. **Sua equipe hoje:** a quantidade de pessoas, com nomes opcionais, "+ Adicionar pessoa" ou "Colar lista de nomes".
-2. **Funcionamento:** os dias em que abre, o **mínimo de pessoas trabalhando** por dia e os dias em que pode haver folga.
+   - **"A equipe trabalha em turnos?"** (vem "Não"). Com "Sim", a equipe vira **turnos fixos**: de 2 a 5 blocos (começa com Manhã, Intermediário e Noite, a equipe da tela dividida em 3), cada um com nome editável, quantidade, nomes e "Colar lista de nomes" do turno. Sem nome, a pessoa vira "Manhã 1, Manhã 2…", como na planilha da RH.
+2. **Funcionamento:** os dias em que abre, o **mínimo de pessoas trabalhando** por dia e os dias em que pode haver folga. Com turnos, o mínimo tem **uma coluna por turno** (no celular, os dias ficam abreviados para caber); dias abertos e "pode folgar" valem para todos.
    - O mínimo **começa com a operação de hoje no 6x1**: cada pessoa trabalha 6 dias e, com o domingo aberto, a regra do domingo tira parte da equipe. Sem mexer em nada, a resposta é *"para manter a sua operação de hoje no 5x2, faltam X"* (cerca de 20%).
    - Enquanto a pessoa não edita o mínimo, ele acompanha o tamanho da equipe, os dias abertos e o ramo. Depois de editado, os números dela ficam, inclusive na escala salva. O link "Voltar para a operação de hoje" desfaz a edição.
 3. **Regras:** o ramo (comércio, ou indústria/transporte/serviços) e se a empresa **se enquadra no art. 386 da CLT**. Se marcar Sim, informa o sexo de cada pessoa.
@@ -101,17 +102,18 @@ Rode o teste sempre que mexer no `motor.js`.
 5. Botão **"Descobrir quantas pessoas eu preciso"**, que depois passa a se chamar **"Atualizar escala"**.
 
 **O resultado grátis:**
-- **Placar:** Hoje · A regra pede · Faltam (ou "Dá conta" / "Sobra"). Com art. 386, mostra os dois cenários: "falta 1 se contratar homens; 2 se mulheres". Quando falta gente, a escala já sai montada com "Contratação 1, 2…".
+- **Placar:** Hoje · A regra pede · Faltam (ou "Dá conta" / "Sobra"). Com art. 386, mostra os dois cenários: "falta 1 se contratar homens; 2 se mulheres". Quando falta gente, a escala já sai montada com "Contratação 1, 2…". Com turnos, o placar é o total e embaixo vem **uma linha por turno** (Hoje · A regra pede · Dá conta / Falta N), porque é por turno que o líder contrata; as contratações entram no fim do turno delas, numeradas em sequência.
 - **Card "Sua próxima etapa":** o título é "Contratar é só o começo. Escalar corretamente é o desafio." (ou "Sua equipe dá conta. Agora, organize as folgas do ano todo."). Mostra a **primeira semana** em formato de calendário, com os controles de mês e de formato; o resto aparece borrado. Traz a lista do que vem na versão completa (folgas de 12 meses, conferida, **imagem do mês para o WhatsApp**, Excel que fica vermelho se errar), o preço e o botão **"Liberar minha escala completa"**.
 
 **A área paga:**
 - calendário de 12 meses, mês a mês, com os feriados;
 - visão "uma linha por dia" (padrão até 6 pessoas) ou "uma linha por pessoa";
 - **trocas de um dia**: clicar troca folga ↔ trabalho, a conferência refaz na hora, e há "desfazer a última" e "voltar à escala original";
-- a escala fixa (o rodízio de cada pessoa);
+- a escala fixa (o rodízio de cada pessoa), com a escolha **"Folgas emendadas / Separadas"** ao lado de "Ver outra opção de rodízio" (a mesma escolha está na prévia grátis). É gosto da empresa, não regra: emendadas (2 dias seguidos) é o padrão; a escolha vai na escala salva e na aba Regras do Excel. Fica na escala, e não no formulário, para não alongar o começo;
+- com turnos, **tudo sai agrupado por turno**: no calendário "uma linha por pessoa", uma faixa com o nome do turno abre o bloco e a linha **Trabalhando** de cada turno fecha; em "uma linha por dia", cada turno é um bloco de colunas com o próprio Trabalhando; a escala fixa e o resumo têm a faixa do turno. A troca de um dia é conferida contra o mínimo **do turno**;
 - resumo por pessoa;
 - Excel;
-- **"Imagem do mês p/ WhatsApp"**: um PNG do mês que está na tela, da **equipe toda** (nomes × dias, só as folgas marcadas) ou de **uma pessoa** (calendário dela com as folgas e o total de domingos de folga). No celular abre o "Compartilhar"; no computador baixa o arquivo para anexar no WhatsApp Web. **Não dispara mensagem**;
+- **"Imagem do mês p/ WhatsApp"**: um PNG do mês que está na tela, da **equipe toda** (nomes × dias, só as folgas marcadas; com turnos, uma faixa por turno), de **um turno só** (para o grupo do turno) ou de **uma pessoa** (calendário dela com as folgas e o total de domingos de folga). No celular abre o "Compartilhar"; no computador baixa o arquivo para anexar no WhatsApp Web. **Não dispara mensagem**;
 - "Copiar texto", a versão em texto da mesma coisa.
 
 **A conta (sem senha, desde 29/10/2026):**
@@ -136,6 +138,8 @@ Rode o teste sempre que mexer no `motor.js`.
 | Domingo, mulheres (se a empresa se enquadra) | **Domingos alternados**, só para quem é mulher; "contratação a definir" conta como mulher, para valer para qualquer contratação | CLT, art. 386; a SDI-1 do TST aplica e prevalece sobre a regra do comércio (há divergência na 2ª Turma) |
 | Feriados | Marcados no calendário e no Excel: nacionais e Sexta-feira Santa (pela Páscoa). Se abrir: pagar em dobro ou dar folga | Lei 605/1949; no comércio, abrir em feriado depende de convenção coletiva |
 | Folga a mais na semana | **Aviso amarelo**, não bloqueia (pode ser férias, atestado, compensação) | A lei exige no mínimo 2 |
+| Folgas emendadas ou separadas | Escolha na escala; o padrão é emendadas. Nos dois, evita 3 folgas seguidas e "folga, trabalha 1 dia, folga" sempre que a escala fecha sem isso | Gosto da empresa: a lei não pede nenhum dos dois |
+| Turnos fixos | Cada pessoa sempre no mesmo turno; cada turno é conferido contra o próprio mínimo por dia | Revezamento de turno (a pessoa muda de turno), 12x36 e plantões ficam fora |
 | Motorista em viagem | Fora do escopo (avisado no "?") | Lei 13.103/2015 |
 
 Estaduais e municipais **não** entram nos feriados. A página e o Excel avisam que a escala é ferramenta de apoio e que **a convenção coletiva** pode ter regras próprias.
@@ -154,7 +158,10 @@ As datas viram dias inteiros em UTC, sem fuso. O período vai até 1 ano. A idei
    Se não fecha, devolve o erro **explicado**, com sugestões: "As folgas não cabem", "Domingos de folga não fecham", "Gente de menos no sábado"…
 2. **`distribuir`:** quantas folgas cada dia recebe. O domingo leva primeiro o que a regra exige, e o resto vai para os dias com mais gente acima do mínimo.
 3. **`dividir`:** reparte essas folgas entre os grupos, proporcional ao tamanho, respeitando o mínimo de domingos de cada grupo.
-4. **`ordenar`:** busca com retrocesso da ordem do ciclo. Confere os dias seguidos na virada da semana e a janela de domingos, e prefere folgas coladas.
+4. **`ordenar`:** busca com retrocesso da ordem do ciclo. Confere os dias seguidos na virada da semana e a janela de domingos.
+   - **Desenho das folgas** (29/10, pedido de uma RH que montou à mão): "folgas emendadas" prefere as 2 juntas (dentro da semana ou domingo + segunda); "separadas" prefere espalhadas. Nos dois, foge de **3 folgas seguidas** e de **folga, trabalha 1 dia, folga**.
+   - Primeiro tenta um ciclo **sem nenhum desses defeitos**, conferindo também a volta da última semana para a primeira (era ali que o exemplo da página caía: folga quarta e domingo, depois segunda e terça). Se não achar, a busca normal aceita o defeito: **é preferência, nunca deixa de fechar** e não muda quantas pessoas faltam (conferido em 162 cenários, antes × depois). A conta de "quantos faltam" (`rapido`) pula essa parte.
+   - Resultado em 160 cenários variados: defeitos só de folga **−84%**; o exemplo da página ficou sem nenhum.
 5. **`montar`:** tenta, nesta ordem:
    - (a) **ciclo curto**: uma mini-equipe de 3, 4, 2, 5 ou 6 pessoas, replicada, se o tamanho dividir a equipe; a escala se repete a cada poucas semanas e continua justa;
    - (b) com art. 386 e equipe mista, **todo mundo em domingos alternados** num rodízio só, que divide melhor os domingos;
@@ -165,7 +172,8 @@ As datas viram dias inteiros em UTC, sem fuso. O período vai até 1 ano. A idei
    - **Problemas:** semana com menos de 2 folgas, dias seguidos acima do limite, domingos seguidos acima da regra, dia com gente abaixo do mínimo.
    - **Avisos:** folga a mais na semana.
    - Também marca as células com problema.
-7. **`faltam` / `menorEquipe`:** a menor equipe que fecha, partindo do mínimo teórico. Usa a busca rápida e, se ela não achar encaixe, confere com a busca completa, para nunca mandar contratar sem precisar.
+7. **Turnos fixos** (`cfg.turnos = [{ nome, minimo[7] }]`, `cfg.turnoDe[e]`): cada turno é uma equipe à parte com o próprio mínimo; `montar` monta um de cada vez (`doTurno`) e `juntarTurnos` junta na ordem das pessoas. `validar` confere cada turno no seu mínimo e devolve `coberturaTurno` e `faltaTurno`. Sem turnos, nada muda.
+8. **`faltam` / `menorEquipe`:** a menor equipe que fecha, partindo do mínimo teórico. Usa a busca rápida e, se ela não achar encaixe, confere com a busca completa, para nunca mandar contratar sem precisar.
 
 **Desempenho medido:** menos de 1 s na maioria dos casos. O pior caso medido foi **2 s** (100 pessoas, equipe mista, art. 386 e falta de gente), e roda no navegador, sem servidor.
 
@@ -187,9 +195,11 @@ Gerada no navegador com **ExcelJS 4.4.0** (CDN jsDelivr). Abre na aba **Calendá
 | Escala fixa | O rodízio de cada pessoa por semana, com "↺ volta à semana 1" |
 | Folgas por semana | Fórmula por pessoa e semana: **vermelho** se faltar folga, **amarelo** se sobrar |
 | Resumo | Folgas, domingos de folga, domingos trabalhados e sábados trabalhados (fórmulas) |
-| Regras | A configuração usada, os feriados do período, a base legal e o aviso |
+| Regras | A configuração usada (com os turnos e a escolha de folgas emendadas ou separadas), os feriados do período, a base legal e o aviso |
 
 No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos, domingos têm fundo bege e feriados, rosa (nos quadros do mês também). A formatação condicional **refaz a conferência se a pessoa editar no Excel**: dias seguidos acima do limite em vermelho e dia com gente de menos em vermelho. No formato "uma linha por dia", o domingo de semana sem 2 folgas fica laranja. Nos dois formatos, a aba "Folgas por semana" acusa falta e sobra de folga. Até 12 pessoas o padrão é "uma linha por dia" (o formato que a RH preferiu); acima disso, "uma linha por pessoa". O cliente escolhe antes de baixar.
+
+**Com turnos**, todas as abas saem agrupadas por turno, no formato da planilha de 2 turnos que a RH aprovou: faixa com o nome do turno, as pessoas dele e as linhas **Trabalhando** e **Mínimo** do turno, com o vermelho quando falta gente **no turno**. Em "uma linha por dia", cada turno é um bloco de colunas com o próprio Trabalhando e Mínimo. Sem turnos, o Excel é célula por célula o mesmo de antes (conferido nos dois formatos), com uma linha a mais na aba Regras (folgas emendadas ou separadas).
 
 ---
 
@@ -332,7 +342,9 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 - **A ferramenta é a própria página de entrada:** quem clica no anúncio cai direto na pergunta. Nada aparece antes do clique (só o "Como funciona"), e o preço só aparece depois de mostrar valor.
 - **O produto é a escala que se repete**, e não um período: o cliente informa só "começa em", e o calendário cobre 12 meses.
 - **A prévia grátis mostra só a primeira semana**, com os controles de mês e formato funcionando e o resto borrado, para provar que funciona sem entregar o produto.
-- **Só 5x2 com revezamento na v1.** 12x36, turnos e plantões têm outra regra; ficam para a v2 se vender.
+- **Só 5x2 com revezamento.** 12x36 e plantões têm outra regra; ficam para depois, se vender.
+- **Turnos fixos, sem horário** (29/10/2026, decisão do usuário, a pedido de um líder de loja de varejo com 3 turnos: manhã, intermediário e noite): o líder escolhe de 2 a 5 turnos, o app diz quantos contratar **por turno** e o total, e a escala sai por turno. É o mesmo motor, um turno de cada vez. Horários de entrada e saída ficaram de fora para manter simples.
+- **Folgas emendadas ou separadas é uma escolha só, na escala** (29/10/2026, decisão do usuário): uma RH pediu folgas separadas; a maioria prefere emendadas. Evitar 3 folgas seguidas e "folga, 1 dia, folga" não é escolha: vale sempre.
 - **"Sua empresa se enquadra no art. 386?"** em vez de "tem mulher?": o dono sabe se está enquadrado. Com Sim, a regra vale só para as mulheres. **Vem marcado "Não"** (26/10, decisão do usuário): era obrigatório responder e travava o primeiro resultado do tráfego frio; quem se enquadra muda.
 - **O mínimo começa com a operação de hoje no 6x1.** Testamos três pontos de partida com 50 pessoas: "equipe inteira" exagera (faltam 25), "72% da equipe" esconde o problema (faltam 0), e "operação de hoje" responde a pergunta real (faltam 10).
 - **Conta sem senha** (29/10/2026, decisão do usuário, trocando a conta com senha): compra só com o e-mail, entrar por código no e-mail pelo **Resend da CarvalhoIA**, sem WhatsApp e sem comprar domínio para isso. O código não é pedido antes de pagar.
@@ -348,7 +360,8 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 ## 15. Limitações conhecidas e próximos passos
 
 **Limitações:**
-- A conta é feita em **pessoas por dia**, não em horas ou turnos. Também não inclui férias e atestados; a tela avisa.
+- A conta é feita em **pessoas por dia** (por turno, com turnos), não em horas. Também não inclui férias e atestados; a tela avisa.
+- Turno pequeno sai caro: com 1 pessoa por turno, cada turno precisa de 2, e a segunda fica com dias sobrando. Um folguista que cobre vários turnos economizaria, mas o app não monta isso.
 - Antes de 16/12/2026 a lei ainda permite 6x1, mas o app sempre monta 5x2.
 - Os feriados são só os nacionais.
 - A escala completa é gerada **no navegador**: quem souber mexer consegue extraí-la sem pagar. É aceitável no ticket baixo; se incomodar, a geração passa para o servidor.
@@ -361,4 +374,4 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 2. Aviso de cookies do GA4 e do Pixel (orientação da ANPD), quando o volume crescer.
 3. Teste de compra real (Pix e cartão) e do e-mail de recuperação (o 403 do Resend foi corrigido em 28/10: agente `Python-urllib` barrado pelo Cloudflare).
 4. Pixel e GA4 no ar (seção 10.1); falta a API de Conversões da Meta no servidor.
-5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; turnos (manhã e tarde) e 12x36 na v2.
+5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; folguista entre turnos; horário dos turnos; 12x36.

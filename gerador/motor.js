@@ -64,15 +64,21 @@
     return out;
   }
 
-  // dias de trabalho antes da 1ª folga, depois da última e maior sequência dentro da semana
+  // dias de trabalho antes da 1ª folga, depois da última e maior sequência dentro da semana; e o desenho
+  // das folgas: quantas folgas abrem e fecham a semana, o maior bloco de folgas e os buracos de 1 dia só
+  // de trabalho entre duas folgas (folga, trabalha 1 dia, folga)
   function infoPadrao(mascara) {
-    let cabeca = 0; while (cabeca < 7 && !((mascara >> cabeca) & 1)) cabeca++;
-    let cauda = 0; while (cauda < 7 && !((mascara >> (6 - cauda)) & 1)) cauda++;
-    let maior = 0, run = 0;
+    const off = d => (mascara >> d) & 1;
+    let cabeca = 0; while (cabeca < 7 && !off(cabeca)) cabeca++;
+    let cauda = 0; while (cauda < 7 && !off(6 - cauda)) cauda++;
+    let iniOff = 0; while (iniOff < 7 && off(iniOff)) iniOff++;
+    let fimOff = 0; while (fimOff < 7 && off(6 - fimOff)) fimOff++;
+    let maior = 0, run = 0, bloco = 0, runF = 0, um = 0;
     for (let d = 0; d < 7; d++) {
-      if ((mascara >> d) & 1) run = 0; else { run++; maior = Math.max(maior, run); }
+      if (off(d)) { run = 0; runF++; bloco = Math.max(bloco, runF); } else { run++; maior = Math.max(maior, run); runF = 0; }
+      if (d > 0 && d < 6 && !off(d) && off(d - 1) && off(d + 1)) um++;
     }
-    return { cabeca, cauda, maior, dom: !!((mascara >> DOM) & 1) };
+    return { cabeca, cauda, maior, iniOff, fimOff, bloco, um, dom: !!off(DOM) };
   }
 
   const na = d => (d >= 5 ? 'no ' : 'na ') + DIAS_LONGOS[d];    // "na segunda", "no sábado"
@@ -94,6 +100,7 @@
       podeFolgar: cfg.podeFolgar.slice(0, 7).map(Boolean),
       maxSeguidos: Math.min(6, Math.max(5, +cfg.maxSeguidos || 6)),
       domingoCada: Math.min(7, Math.max(2, Math.floor(+cfg.domingoCada || 3))),   // regra do ramo: 3 comércio, 7 demais
+      folgas: cfg.folgas === 'separadas' ? 'separadas' : 'juntas',     // gosto da empresa: as 2 folgas emendadas ou espalhadas
       inicio: cfg.inicio,
       fim: cfg.fim,
     };
@@ -281,7 +288,9 @@
 
   // Ordena N padrões num ciclo: cada pessoa anda uma posição por semana, então a cobertura
   // de toda semana é igual e só as viradas entre padrões vizinhos precisam ser conferidas.
-  function ordenar(plano, n, rnd, limite) {
+  // `estrito` não aceita os defeitos de desenho (3 folgas seguidas, folga-1 dia-folga), nem na volta do ciclo:
+  // é a primeira tentativa; se não achar, a busca normal aceita o defeito quando é o único jeito de fechar.
+  function ordenar(plano, n, rnd, limite, estrito) {
     const { N, K, S, domAberto, cands } = plano;
     const r = n.slice(), seq = [];
     let nos = 0;
@@ -291,11 +300,20 @@
       const ate = S - g;
       return L >= ate ? 1 + Math.floor((L - ate) / S) : 0;
     }
+    // Folgas juntas: prefere as 2 emendadas (dentro da semana ou domingo + segunda). Separadas: prefere espalhadas.
+    // Nos dois casos foge de 3 folgas seguidas e de "folga, trabalha 1 dia, folga", que parecem escala mal feita.
+    // É só preferência: a busca continua podendo usar qualquer padrão quando é o único jeito de fechar.
+    const juntas = plano.cfg.folgas !== 'separadas';
+    const defeito = (ant, c) => c.bloco >= 3 || c.um > 0 ||
+      (ant && (ant.cauda + c.cabeca === 1 || (ant.cauda + c.cabeca === 0 && ant.fimOff + c.iniOff >= 3)));
     function prioridade(c, ant, L) {
       let p = 0;
       for (const d of c.dias) p += r[d] / L;
-      if (c.dias.length === 2 && c.dias[1] - c.dias[0] === 1) p += 0.35;
-      if (ant && (ant.cheio >> DOM) & 1 && c.cheio & 1) p += 0.35;
+      const emenda = ant && ant.cauda + c.cabeca === 0 ? ant.fimOff + c.iniOff : 0;   // bloco de folgas na virada
+      const par = (c.dias.length === 2 && c.dias[1] - c.dias[0] === 1) || (emenda === 2);
+      if (par) p += juntas ? 0.35 : -0.35;
+      if (c.bloco >= 3 || emenda >= 3) p -= 0.6;
+      if (c.um || (ant && ant.cauda + c.cabeca === 1)) p -= 0.5;
       p -= 0.08 * ((ant ? ant.cauda : 0) + c.cabeca);
       return p + (rnd() - 0.5) * 0.4;
     }
@@ -305,6 +323,7 @@
         const ult = cands[seq[N - 1]], pri = cands[seq[0]];
         if (ult.cauda + pri.cabeca > K) return false;
         if (domAberto && g + lead > S - 1) return false;
+        if (estrito && defeito(ult, pri)) return false;
         return true;
       }
       if (++nos > limite) return false;
@@ -314,6 +333,7 @@
         const c = cands[i];
         if (!c.dias.every(d => r[d] > 0)) continue;
         if (ant && ant.cauda + c.cabeca > K) continue;
+        if (estrito && defeito(ant, c)) continue;
         const g2 = domAberto ? (c.dom ? 0 : g + 1) : 0;
         if (g2 > S - 1) continue;
         opcoes.push({ i, g2, p: prioridade(c, ant, L) });
@@ -338,17 +358,32 @@
     return busca(0, -1) ? seq.slice() : null;
   }
 
-  function pontuar(plano, seq) {
+  // o ciclo inteiro de uma pessoa (o rodízio dá a volta): folgas emendadas, sequências longas de trabalho e
+  // os defeitos (3 folgas seguidas, folga-1 dia-folga). Cada defeito pesa mais que todo o ganho das emendadas.
+  function desenho(plano, seq) {
     const bits = [];
     for (const i of seq) for (let d = 0; d < 7; d++) bits.push((plano.cands[i].cheio >> d) & 1);
     const T = bits.length;
-    let coladas = 0, pen = 0, run = 0;
+    let coladas = 0, pen = 0, run = 0, defeitos = 0;
     for (let i = 0; i < T; i++) if (bits[i] && (bits[(i + T - 1) % T] || bits[(i + 1) % T])) coladas++;
     const ini = bits.indexOf(1);
+    if (ini < 0) return { T, coladas, pen, defeitos };
+    let runF = 0;
     for (let k = 1; k <= T; k++) {
-      if (bits[(ini + k) % T]) { pen += Math.max(0, run - 4) ** 2; run = 0; } else run++;
+      const i = (ini + k) % T;
+      if (bits[i]) {
+        pen += Math.max(0, run - 4) ** 2;
+        if (run === 1) defeitos++;
+        run = 0; runF++;
+        if (runF === 3) defeitos++;
+      } else { run++; runF = 0; }
     }
-    return coladas / T - 0.6 * pen / T;
+    return { T, coladas, pen, defeitos };
+  }
+  function pontuar(plano, seq) {
+    const { T, coladas, pen, defeitos } = desenho(plano, seq);
+    const sinal = plano.cfg.folgas === 'separadas' ? -1 : 1;
+    return sinal * coladas / T - 0.6 * pen / T - 1.0 * defeitos * 7 / T;
   }
 
   // Ciclo curto: monta a escala de uma mini-equipe de T pessoas (T divide a equipe), com o mínimo de
@@ -394,14 +429,15 @@
       }
     }
     if (junto) {
-      const r = montarUma(junto, semente, true, 200);
+      const r = montarUma(junto, semente, true, 200, rapido);
       if (r.ok) return Object.assign(r, { cfg });
     }
-    return montarUma(cfgBruta, semente, semAlternativas);
+    return montarUma(cfgBruta, semente, semAlternativas, 0, rapido);
   }
 
   // A semente muda quem fica em qual posição e a solução escolhida ("Gerar outra opção").
-  function montarUma(cfgBruta, semente, semAlternativas, prazoMs) {
+  // `rapido` só quer saber se fecha: pula a busca caprichada no desenho das folgas.
+  function montarUma(cfgBruta, semente, semAlternativas, prazoMs, rapido) {
     const plano = planejar(cfgBruta);
     const cfg = plano.cfg;
     if (plano.erros.length) return { ok: false, cfg, erros: plano.erros };
@@ -420,7 +456,7 @@
       const seqs = [];
       for (let g = 0; g < grupos.length; g++) {
         const sub = Object.assign({}, plano, { N: grupos[g].T, S: grupos[g].S });
-        let seq = null;
+        let seq = rapido ? null : ordenar(sub, partes[g], rnd, (2000 + grupos[g].T * 40) * fator, true);
         for (let tenta = 0; tenta < 3 && !seq; tenta++) {
           seq = ordenar(sub, partes[g], rnd, (4000 + grupos[g].T * 60) * fator * (1 + 4 * tenta));
         }
@@ -429,8 +465,10 @@
       }
       if (seqs.length < grupos.length) continue;
       const s = seqs.reduce((a, seq) => a + pontuar(plano, seq), 0) / seqs.length;
-      if (!melhor || s > melhor.s + 1e-9) melhor = { seqs, s, n };
-      if (melhor && (t >= 12 || Date.now() - t0 > prazo / 3)) break;
+      const def = seqs.reduce((a, seq) => a + desenho(plano, seq).defeitos, 0);
+      if (!melhor || s > melhor.s + 1e-9) melhor = { seqs, s, n, def };
+      // com defeito no desenho (3 folgas seguidas, folga-1 dia-folga) vale tentar mais rodadas, no mesmo prazo
+      if (melhor && (t >= (melhor.def && !rapido ? 40 : 12) || Date.now() - t0 > prazo / 3)) break;
     }
     if (!melhor) {
       // a regra do domingo vem da lei; só o limite de dias seguidos dá para afrouxar
