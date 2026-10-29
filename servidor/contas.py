@@ -1,10 +1,10 @@
-"""Contas da Escala Certa: cadastro, login e recuperação de senha por e-mail.
+"""Contas da Escala Certa: sem senha. Quem compra cria a conta só com o e-mail; para entrar de novo, código por e-mail.
 
-Segue o padrão do login do Multpel:
-  • senha com hash forte (werkzeug/scrypt), nunca guardada nem registrada em log;
-  • resposta genérica ("e-mail ou senha inválidos") e mesmo tempo de resposta exista ou não a conta;
-  • trava por CONTA com castigo crescente (15 min → 1 h → 4 h), temporária para não virar
-    arma de quem quer travar a conta dos outros;
+  • na compra, o e-mail cria a conta e já entra naquele aparelho (pedir código antes de pagar tirava a pessoa do
+    navegador do Instagram para o e-mail, e 4 de 4 que clicaram em Liberar desistiram na tela de e-mail e senha);
+  • e-mail que já tem conta não entra sem o código: sem isso, digitar o e-mail de quem pagou daria o acesso dele;
+  • código de 6 números, guardado só como HMAC, vale 15 minutos, 5 tentativas, 5 códigos por hora por conta;
+  • pedir código responde sempre igual, exista ou não a conta (não revela quem tem conta);
   • trava por IP só de volume, em memória, que se desfaz sozinha.
 """
 import hashlib
@@ -16,22 +16,17 @@ import time
 from datetime import timedelta
 
 from psycopg.errors import UniqueViolation
-from werkzeug.security import check_password_hash, generate_password_hash
 
 import banco
 from config import config
 
-MAX_TENTATIVAS = 5
 BLOQUEIO_MIN = 15
 MAX_FALHAS_IP = 50
-SENHA_MIN = 8
 CODIGO_VALIDADE_MIN = 15
 CODIGO_MAX_TENTATIVAS = 5
-CODIGOS_POR_HORA = 3
+CODIGOS_POR_HORA = 5
 
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-# hash descartável: no caminho "e-mail não existe" gasta o mesmo tempo de um hash real
-_HASH_ISCA = generate_password_hash(secrets.token_urlsafe(16))
 
 
 class Erro(Exception):
@@ -44,11 +39,10 @@ def normalizar_email(email):
     return (email or "").strip().lower()
 
 
-def validar_senha(senha):
-    if len(senha or "") < SENHA_MIN:
-        raise Erro(f"A senha precisa ter pelo menos {SENHA_MIN} caracteres.")
-    if len(senha) > 200:
-        raise Erro("Senha longa demais.")
+def nova_chave_sessao():
+    # a coluna ainda se chama senha_hash, mas sem senha ela é só o segredo da sessão:
+    # trocar este valor derruba todos os aparelhos logados na conta
+    return "sessao:" + secrets.token_urlsafe(24)
 
 
 def publico(u):
@@ -61,18 +55,17 @@ def buscar(usuario_id):
         return con.execute("SELECT * FROM usuarios WHERE id = %s", (usuario_id,)).fetchone()
 
 
-# ---------------- cadastro ----------------
-def criar(email, senha, ip):
+# ---------------- cadastro (na compra) ----------------
+def criar(email, ip):
     email = normalizar_email(email)
     if not EMAIL.match(email) or len(email) > 200:
         raise Erro("E-mail inválido.")
-    validar_senha(senha)
     try:
         with banco.conexao() as con:
             uid = con.execute("INSERT INTO usuarios (email, senha_hash, criado) VALUES (%s, %s, %s) RETURNING id",
-                              (email, generate_password_hash(senha), banco.agora())).fetchone()["id"]
+                              (email, nova_chave_sessao(), banco.agora())).fetchone()["id"]
     except UniqueViolation:
-        raise Erro("Já existe conta com esse e-mail. Entre com a sua senha.", 409)
+        raise Erro("Esse e-mail já tem conta. Mandamos um código para ele: digite aqui para entrar.", 409)
     banco.log(uid, email, ip, "cadastro")
     return buscar(uid)
 
@@ -110,53 +103,7 @@ def _msg_bloqueio(segundos):
     return f"Muitas tentativas. Tente de novo em {quando}."
 
 
-# ---------------- login ----------------
-def entrar(email, senha, ip):
-    email = normalizar_email(email)
-    if not email or not senha:
-        raise Erro("Preencha e-mail e senha.")
-    if _ip_excedido(ip):
-        banco.log(None, email, ip, "ip_bloqueado")
-        raise Erro(_msg_bloqueio(BLOQUEIO_MIN * 60), 429)
-    with banco.conexao() as con:
-        u = con.execute("SELECT * FROM usuarios WHERE email = %s", (email,)).fetchone()
-    if not u:
-        check_password_hash(_HASH_ISCA, senha)
-        _ip_falha(ip)
-        banco.log(None, email, ip, "email_inexistente")
-        raise Erro("E-mail ou senha inválidos.", 401)
-    # durante o bloqueio nem a senha certa entra: é o que impede continuar adivinhando
-    if u["bloqueado_ate"]:
-        restante = (u["bloqueado_ate"] - banco.agora()).total_seconds()
-        if restante > 0:
-            banco.log(u["id"], email, ip, "tentativa_durante_bloqueio")
-            raise Erro(_msg_bloqueio(restante), 429)
-    if not check_password_hash(u["senha_hash"], senha):
-        _ip_falha(ip)
-        segundos = _registrar_falha(u["id"], email, ip)
-        raise Erro(_msg_bloqueio(segundos), 429) if segundos else Erro("E-mail ou senha inválidos.", 401)
-    with banco.conexao() as con:
-        con.execute("UPDATE usuarios SET tentativas_falhas = 0, bloqueado_ate = NULL, bloqueios_seguidos = 0 WHERE id = %s", (u["id"],))
-    _ip_ok(ip)
-    banco.log(u["id"], email, ip, "login")
-    return buscar(u["id"])
-
-
-def _registrar_falha(uid, email, ip):
-    with banco.conexao() as con:
-        con.execute("UPDATE usuarios SET tentativas_falhas = tentativas_falhas + 1 WHERE id = %s", (uid,))
-        u = con.execute("SELECT tentativas_falhas, bloqueios_seguidos FROM usuarios WHERE id = %s", (uid,)).fetchone()
-        if u["tentativas_falhas"] >= MAX_TENTATIVAS:
-            minutos = BLOQUEIO_MIN * (4 ** min(u["bloqueios_seguidos"], 2))     # 15 min → 1 h → 4 h
-            con.execute("UPDATE usuarios SET bloqueado_ate = %s, tentativas_falhas = 0, bloqueios_seguidos = bloqueios_seguidos + 1 WHERE id = %s",
-                        (banco.agora() + timedelta(minutes=minutos), uid))
-            banco.log(uid, email, ip, f"bloqueado:{minutos}min")
-            return minutos * 60
-    banco.log(uid, email, ip, "senha_incorreta")
-    return 0
-
-
-# ---------------- recuperação de senha por e-mail ----------------
+# ---------------- entrar com código por e-mail ----------------
 def _hash_codigo(rec_id, codigo):
     return hmac.new(config.SECRET_KEY.encode(), f"{rec_id}:{codigo}".encode(), hashlib.sha256).hexdigest()
 
@@ -170,12 +117,12 @@ def pedir_codigo(email, ip, enviar):
         u = con.execute("SELECT * FROM usuarios WHERE email = %s", (email,)).fetchone()
         if not u:
             _ip_falha(ip)
-            banco.log(None, email, ip, "recuperacao_email_inexistente")
+            banco.log(None, email, ip, "codigo_email_inexistente")
             return
         uma_hora = banco.agora() - timedelta(hours=1)
         recentes = con.execute("SELECT COUNT(*) AS n FROM recuperacoes WHERE usuario_id = %s AND criado > %s", (u["id"], uma_hora)).fetchone()["n"]
         if recentes >= CODIGOS_POR_HORA:
-            banco.log(u["id"], email, ip, "recuperacao_limite")
+            banco.log(u["id"], email, ip, "codigo_limite")
             raise Erro("Já mandamos códigos demais. Espere uma hora e tente de novo.", 429)
         codigo = f"{secrets.randbelow(10**6):06d}"
         rec_id = con.execute("INSERT INTO recuperacoes (usuario_id, codigo_hash, expira, criado) VALUES (%s, '', %s, %s) RETURNING id",
@@ -183,17 +130,19 @@ def pedir_codigo(email, ip, enviar):
         con.execute("UPDATE recuperacoes SET codigo_hash = %s WHERE id = %s", (_hash_codigo(rec_id, codigo), rec_id))
     # o código vem primeiro no assunto: aparece já na notificação do celular
     enviar(u["email"], f"{codigo} é o seu código da Escala Certa",
-           f"Olá!\nSeu código para criar uma nova senha na Escala Certa é: {codigo}\n"
+           f"Olá!\nSeu código para entrar na Escala Certa é: {codigo}\n"
            f"Ele vale por {CODIGO_VALIDADE_MIN} minutos.\n"
-           "Se não foi você que pediu, ignore este e-mail: a sua senha continua a mesma.",
+           "Se não foi você que pediu, ignore este e-mail: ninguém entra na sua conta sem este código.",
            codigo=codigo, minutos=CODIGO_VALIDADE_MIN)
-    banco.log(u["id"], email, ip, "recuperacao_codigo_enviado")
+    banco.log(u["id"], email, ip, "codigo_enviado")
 
 
-def redefinir(email, codigo, nova, ip):
+def entrar(email, codigo, ip):
     email = normalizar_email(email)
-    validar_senha(nova)
     codigo = "".join(c for c in (codigo or "") if c.isdigit())
+    if _ip_excedido(ip):
+        banco.log(None, email, ip, "ip_bloqueado")
+        raise Erro(_msg_bloqueio(BLOQUEIO_MIN * 60), 429)
     with banco.conexao() as con:
         u = con.execute("SELECT * FROM usuarios WHERE email = %s", (email,)).fetchone()
         rec = con.execute("SELECT * FROM recuperacoes WHERE usuario_id = %s AND NOT usado ORDER BY id DESC LIMIT 1",
@@ -201,27 +150,20 @@ def redefinir(email, codigo, nova, ip):
         if not rec or rec["expira"] < banco.agora() or rec["tentativas"] >= CODIGO_MAX_TENTATIVAS:
             _ip_falha(ip)
             raise Erro("Código inválido ou vencido. Peça um novo.", 400)
-        if not hmac.compare_digest(rec["codigo_hash"], _hash_codigo(rec["id"], codigo)):
+        certo = hmac.compare_digest(rec["codigo_hash"], _hash_codigo(rec["id"], codigo))
+        if certo:
+            # código usado não serve de novo; os mais antigos também caem
+            con.execute("UPDATE recuperacoes SET usado = TRUE WHERE usuario_id = %s", (u["id"],))
+        else:
             con.execute("UPDATE recuperacoes SET tentativas = tentativas + 1 WHERE id = %s", (rec["id"],))
-            _ip_falha(ip)
-            banco.log(u["id"], email, ip, "recuperacao_codigo_errado")
-            raise Erro("Código incorreto.", 400)
-        # nova senha também destrava a conta: quem prova ter o e-mail é o dono
-        con.execute("UPDATE usuarios SET senha_hash = %s, tentativas_falhas = 0, bloqueado_ate = NULL, bloqueios_seguidos = 0 WHERE id = %s",
-                    (generate_password_hash(nova), u["id"]))
-        con.execute("UPDATE recuperacoes SET usado = TRUE WHERE usuario_id = %s", (u["id"],))
-    banco.log(u["id"], email, ip, "senha_redefinida")
+    # o erro sai DEPOIS do commit: levantado dentro do `with`, o rollback desfazia a contagem e o limite de 5 nunca valia
+    if not certo:
+        _ip_falha(ip)
+        banco.log(u["id"], email, ip, "codigo_errado")
+        raise Erro("Código incorreto. Confira o último e-mail que chegou.", 400)
+    _ip_ok(ip)
+    banco.log(u["id"], email, ip, "login")
     return buscar(u["id"])
-
-
-def trocar_senha(uid, atual, nova, ip):
-    u = buscar(uid)
-    if not u or not check_password_hash(u["senha_hash"], atual or ""):
-        raise Erro("Senha atual incorreta.", 401)
-    validar_senha(nova)
-    with banco.conexao() as con:
-        con.execute("UPDATE usuarios SET senha_hash = %s WHERE id = %s", (generate_password_hash(nova), uid))
-    banco.log(uid, u["email"], ip, "senha_trocada")
 
 
 # ---------------- acesso pago ----------------

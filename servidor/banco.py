@@ -1,4 +1,4 @@
-"""Banco Postgres só da Escala Certa (separado do DanfeZap): contas, pedidos, escalas salvas e recuperação de senha.
+"""Banco Postgres só da Escala Certa (separado do DanfeZap): contas, pedidos, escalas salvas e códigos de entrar por e-mail.
 
 Fica no Postgres que já roda no servidor: o backup diário faz pg_dump de todo banco de lá, sem configuração à parte.
 """
@@ -51,7 +51,7 @@ def criar_tabelas():
             CREATE TABLE IF NOT EXISTS usuarios (
                 id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 email TEXT NOT NULL UNIQUE,
-                senha_hash TEXT NOT NULL,
+                senha_hash TEXT NOT NULL,            -- nome antigo: sem senha, é o segredo da sessão (trocar derruba os aparelhos)
                 liberado_em TIMESTAMPTZ,             -- quando o acesso ilimitado foi liberado; NULL = sem acesso
                 tentativas_falhas INTEGER NOT NULL DEFAULT 0,
                 bloqueado_ate TIMESTAMPTZ,

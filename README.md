@@ -36,12 +36,12 @@ Escala/
 │   └── img/                 logo, ícone e favicon
 ├── servidor/                FastAPI + Postgres
 │   ├── main.py              rotas (contas, pedido, escala salva, aviso do Mercado Pago) + serve o site
-│   ├── contas.py            cadastro, login, trava por tentativas, recuperação de senha
+│   ├── contas.py            conta sem senha: cadastro na compra (só o e-mail) e entrar por código no e-mail
 │   ├── mercado_pago.py      Checkout Pro (API de Preferences) e consulta de pagamento
 │   ├── correio.py           e-mail pelo Resend (NÃO renomear para email.py: esconde o pacote do Python)
 │   ├── banco.py             pool de conexões (psycopg 3) e tabelas
 │   ├── config.py            lê o .env
-│   ├── admin.py             liberar acesso / senha temporária pela linha de comando
+│   ├── admin.py             liberar / revogar acesso, derrubar aparelhos, apagar conta pela linha de comando
 │   ├── requirements.txt
 │   └── .env.example         modelo do .env (o .env real nunca vai para o repositório)
 ├── testes/testa_motor.js    teste do motor (node, sem dependências)
@@ -74,7 +74,7 @@ uvicorn main:app --port 8080
 ```
 Abra **http://localhost:8080**.
 - **Pagamento de teste:** no Mercado Pago, entre com o **comprador de teste** (criado em *Contas de teste* no painel). Em `http` local o Mercado Pago **não volta sozinho**: depois de pagar, clique em "Voltar ao site". Com `https` em produção ele volta e avisa sozinho.
-- **"Esqueci minha senha"** sem `RESEND_API_KEY`: o código aparece no log do servidor (só em desenvolvimento).
+- **Código para entrar** sem `RESEND_API_KEY`: o código aparece no log do servidor (só em desenvolvimento).
 - **Acesso sem pagar, para testar:** `python admin.py liberar seu@email.com 365`.
 
 ### 3.3 Testes
@@ -114,11 +114,14 @@ Rode o teste sempre que mexer no `motor.js`.
 - **"Imagem do mês p/ WhatsApp"**: um PNG do mês que está na tela, da **equipe toda** (nomes × dias, só as folgas marcadas) ou de **uma pessoa** (calendário dela com as folgas e o total de domingos de folga). No celular abre o "Compartilhar"; no computador baixa o arquivo para anexar no WhatsApp Web. **Não dispara mensagem**;
 - "Copiar texto", a versão em texto da mesma coisa.
 
-**A conta:**
-- criada antes de pagar, com **e-mail e senha**;
-- o topo mostra "Entrar" ou "Minha conta" (trocar senha, sair);
-- **a escala é salva na conta** sozinha e volta em qualquer aparelho;
-- "Esqueci minha senha" manda um código de 6 números **por e-mail**.
+**A conta (sem senha, desde 29/10/2026):**
+- criada no "Liberar" **só com o e-mail**, e a pessoa segue direto para o pagamento já conectada naquele aparelho. Erro de digitação comum (`gmial.com`, `hotmal.com`…) ganha um "Você quis dizer…?";
+- para entrar em **outro aparelho** (ou depois de limpar o navegador): e-mail → **código de 6 números no e-mail** → entra;
+- e-mail que **já tem conta** não entra sem o código, nem pelo "Liberar" (senão digitar o e-mail de quem pagou daria o acesso dele): o servidor responde 409 e já manda o código;
+- depois do pagamento sai um e-mail de **"Compra confirmada"**, que também ensina a entrar em outro aparelho;
+- o topo mostra "Entrar" ou "Minha conta" (garantia de 7 dias, sair);
+- **a escala é salva na conta** sozinha e volta em qualquer aparelho.
+- **Por quê:** em 27–28/10, 4 de 4 pessoas que clicaram em "Liberar" fecharam a janela de e-mail e senha sem enviar (nenhum `POST /api/conta` no registro). O código não é pedido antes de pagar porque tiraria a pessoa do navegador do Instagram para buscar o e-mail.
 
 ---
 
@@ -196,12 +199,10 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 
 | Rota | Faz |
 |---|---|
-| `POST /api/conta` | Cria a conta (e-mail e senha de no mínimo 8 caracteres) e já entra |
-| `POST /api/entrar`, `POST /api/sair` | Login e logout |
+| `POST /api/conta` | Cria a conta **só com o e-mail** (na compra) e já entra. E-mail que já tem conta: 409 e manda o código |
+| `POST /api/codigo` | Manda o código de 6 números para entrar. A resposta é sempre igual, exista ou não a conta |
+| `POST /api/entrar`, `POST /api/sair` | Entra com e-mail + código; sai |
 | `GET /api/eu` | Quem está logado e até quando vai o acesso |
-| `POST /api/senha/esqueci` | Manda o código por e-mail. A resposta é sempre igual, exista ou não a conta |
-| `POST /api/senha/redefinir` | Código + nova senha (já entra) |
-| `POST /api/senha/trocar` | Troca a senha logado |
 | `POST /api/pedido` | Cria a cobrança no Checkout Pro para a conta logada (409 se a conta já tem acesso: não cobra duas vezes) |
 | `GET /api/pedido/{id}` | Situação; se pago, libera o acesso ilimitado (só o dono do pedido vê) |
 | `POST /api/reembolso` | **Garantia de 7 dias** (CDC art. 49): o cliente cancela em "Minha conta"; estorno total na hora pelo Mercado Pago (`X-Idempotency-Key` por pedido), pedido vira `reembolsado` e o acesso sai. Uma vez por conta; depois, por e-mail. Se o MP recusar (sem saldo), o pedido volta a `aprovado` e a mensagem manda escrever. Aviso atrasado do MP nunca relibera pedido estornado. `GET /api/eu` traz `reembolso_ate` |
@@ -211,12 +212,11 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 
 **Banco** (`banco.py`): banco **`escala_certa`** no Postgres do servidor, com usuário próprio (`escala_app`), nunca o banco do DanfeZap nem o superusuário. Tabelas `usuarios`, `pedidos`, `escalas`, `recuperacoes` e `log_acesso`, criadas ao subir (`CREATE TABLE IF NOT EXISTS`, uma vez por processo, com `lock_timeout`). Datas em `TIMESTAMPTZ`, devolvidas à página sempre em UTC; a escala salva é o JSON da página guardado como texto. Pool psycopg 3 que testa a conexão antes de emprestar (o Postgres compartilhado fecha conexão ociosa), como no Arado. O acesso é a coluna `liberado_em` (quando foi liberado; vazio = sem acesso), sem data de fim.
 
-**Segurança.** O login segue o padrão do Multpel, com alguns pontos a mais:
-- senha com hash forte (werkzeug/scrypt), nunca registrada em log;
-- resposta genérica "E-mail ou senha inválidos", e o **mesmo tempo de resposta** exista ou não a conta (hash isca);
-- **trava por conta**: 5 erros bloqueiam por 15 min, depois 1 h, depois 4 h. Durante o bloqueio, nem a senha certa entra. A trava por IP é só de volume, em memória;
-- **sessão em cookie assinado** (`SECRET_KEY`, obrigatória em produção), `HttpOnly`, `SameSite=Lax`, `Secure` com https; o login dura 90 dias (é só a sessão: o acesso pago não vence). Leva a "versão da senha": **trocar ou redefinir a senha derruba os outros aparelhos**;
-- código de recuperação de 6 dígitos: vale 15 min, aceita 5 tentativas, no máximo 3 por hora, uso único, guardado com HMAC. **Nunca vai para o log em produção**;
+**Segurança.** Não há senha (desde 29/10/2026):
+- **código de 6 dígitos para entrar**: vale 15 min, aceita 5 tentativas, no máximo 5 por hora por conta, uso único (pedir outro derruba o anterior), guardado com HMAC. **Nunca vai para o log em produção**. A tentativa errada é gravada antes de responder o erro (até 29/10 o rollback da transação desfazia a contagem e o limite de 5 não valia);
+- pedir código responde **sempre igual**, exista ou não a conta. A trava por IP é só de volume, em memória;
+- e-mail que já tem conta só entra com o código, inclusive pelo "Liberar";
+- **sessão em cookie assinado** (`SECRET_KEY`, obrigatória em produção), `HttpOnly`, `SameSite=Lax`, `Secure` com https; o login dura 90 dias (é só a sessão: o acesso pago não vence). Leva a versão do segredo da conta (a coluna ainda se chama `senha_hash`): `admin.py sair` e `apagar` trocam esse segredo e **derrubam todos os aparelhos**. Contas antigas, criadas com senha, continuam válidas e entram pelo código;
 - **aprovação de pagamento atômica**: o aviso e a consulta chegando juntos não liberam acesso em dobro (testado com 20 aprovações simultâneas);
 - verificado em 24/10, todos com resultado esperado:
   - `/.env`, código, banco, `/docs` e `/openapi.json` respondem 404;
@@ -246,7 +246,7 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 
 ## 10. E-mail (Resend da CarvalhoIA)
 
-O "Esqueci minha senha" manda o código pelo **Resend**, com o domínio **carvalhoia.com, que já está verificado** (o mesmo do DanfeZap). O remetente padrão é `Escala Certa <nao-responda@carvalhoia.com>`, e `EMAIL_RESPOSTA` é opcional, para onde vão as respostas. Use uma **chave nova do Resend só para a Escala Certa**, com permissão só de envio. Não há disparo de WhatsApp, por decisão do produto.
+O código para entrar e o recibo "Compra confirmada" saem pelo **Resend**, com o domínio **carvalhoia.com, que já está verificado** (o mesmo do DanfeZap). O remetente padrão é `Escala Certa <nao-responda@carvalhoia.com>`, e `EMAIL_RESPOSTA` é opcional, para onde vão as respostas. Use uma **chave nova do Resend só para a Escala Certa**, com permissão só de envio. Não há disparo de WhatsApp, por decisão do produto.
 
 ---
 
@@ -270,12 +270,12 @@ A compra é contada **uma vez por pedido** (marca no navegador). Ela só é cont
 ## 11. Administração (`servidor/admin.py`)
 
 ```bash
-python admin.py liberar <email>   # libera o acesso ilimitado; cria a conta com senha temporária se não existir
+python admin.py liberar <email>   # libera o acesso ilimitado; cria a conta se não existir (a pessoa entra pelo código)
 python admin.py revogar <email>   # tira o acesso (estorno ou arrependimento); a conta e a escala salva continuam
-python admin.py senha <email>     # gera senha temporária nova (a pessoa troca em "Minha conta")
-python admin.py apagar <email>    # pedido de exclusão (LGPD): apaga e-mail, senha e escala salva; pede para digitar APAGAR
+python admin.py sair <email>      # derruba a conta em todos os aparelhos (perdeu o celular logado)
+python admin.py apagar <email>    # pedido de exclusão (LGPD): apaga e-mail e escala salva; pede para digitar APAGAR
 ```
-Use para cortesia, para teste, para estorno feito fora do botão (o direito de arrependimento de 7 dias do CDC vale para compra pela internet; o `revogar` não devolve o dinheiro: estorne no painel do Mercado Pago) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail nem senha, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. A senha temporária aparece só na tela.
+Use para cortesia, para teste, para estorno feito fora do botão (o direito de arrependimento de 7 dias do CDC vale para compra pela internet; o `revogar` não devolve o dinheiro: estorne no painel do Mercado Pago) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. Quem perdeu o acesso ao e-mail: confira que é a pessoa, troque o e-mail da conta no banco e rode `sair`.
 
 ---
 
@@ -297,7 +297,7 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
    ```
 4. **Stack no Portainer** com o nome `escalacerta`: o conteúdo do `escala-stack.yml` com os `<...>` preenchidos (`SECRET_KEY` = `python -c "import secrets; print(secrets.token_hex(32))"`). Rede `carvalhonet` (a do Traefik e do Postgres), uma réplica, sem volume.
 5. **Conferir:** `curl -s https://escalacerta.carvalhoia.com/api/saude` deve responder `{"ok":true}`; os logs: `docker service logs escalacerta_escalacerta --tail 50`.
-6. **Primeira conta com acesso:** `docker exec -it $(docker ps -q -f name=escalacerta_escalacerta | head -1) python admin.py liberar <seu_email>` (a senha temporária aparece só na tela).
+6. **Primeira conta com acesso:** `docker exec -it $(docker ps -q -f name=escalacerta_escalacerta | head -1) python admin.py liberar <seu_email>` (você entra pelo código no e-mail).
 7. **Atualizações seguintes:**
    ```bash
    cd /tmp/escalacerta && git pull && docker build -t ghcr.io/ggabrielmilho-web/escala-certa:latest . && docker service update --force --image ghcr.io/ggabrielmilho-web/escala-certa:latest escalacerta_escalacerta
@@ -307,7 +307,7 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 9. Teste de ponta a ponta em produção:
    - comprar com Pix e com cartão;
    - conferir a volta automática e o aviso do Mercado Pago;
-   - testar o "esqueci minha senha" com e-mail de verdade.
+   - testar o código para entrar e o recibo com e-mail de verdade.
 
 ---
 
@@ -335,7 +335,7 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 - **Só 5x2 com revezamento na v1.** 12x36, turnos e plantões têm outra regra; ficam para a v2 se vender.
 - **"Sua empresa se enquadra no art. 386?"** em vez de "tem mulher?": o dono sabe se está enquadrado. Com Sim, a regra vale só para as mulheres. **Vem marcado "Não"** (26/10, decisão do usuário): era obrigatório responder e travava o primeiro resultado do tráfego frio; quem se enquadra muda.
 - **O mínimo começa com a operação de hoje no 6x1.** Testamos três pontos de partida com 50 pessoas: "equipe inteira" exagera (faltam 25), "72% da equipe" esconde o problema (faltam 0), e "operação de hoje" responde a pergunta real (faltam 10).
-- **Conta com senha** (decisão do usuário), com a recuperação **por e-mail pelo Resend da CarvalhoIA**, sem WhatsApp e sem comprar domínio para isso.
+- **Conta sem senha** (29/10/2026, decisão do usuário, trocando a conta com senha): compra só com o e-mail, entrar por código no e-mail pelo **Resend da CarvalhoIA**, sem WhatsApp e sem comprar domínio para isso. O código não é pedido antes de pagar.
 - **Mercado Pago Checkout Pro, com Pix e cartão**, numa aplicação separada na conta do DanfeZap.
 - **Folga a mais é aviso, não bloqueio:** pode ser férias ou atestado.
 - **Acesso ilimitado, não 90 dias** (26/10, decisão do usuário): quem paga uma vez usa para sempre e monta de novo quantas vezes quiser. Na página, onde dizia "por 90 dias", agora aparece o selo **acesso ilimitado** ao lado do preço.

@@ -1,13 +1,12 @@
 """Administração da Escala Certa pela linha de comando (local ou dentro do container).
 
-  python admin.py liberar <email>   libera o acesso ilimitado (cria a conta com senha temporária se não existir)
+  python admin.py liberar <email>   libera o acesso ilimitado (cria a conta se não existir; a pessoa entra pelo código)
   python admin.py revogar <email>   tira o acesso (estorno ou arrependimento); a conta e a escala salva continuam
-  python admin.py senha <email>     gera uma senha temporária nova (a pessoa troca em "Minha conta")
-  python admin.py apagar <email>    apaga a conta a pedido da pessoa (LGPD, art. 18): e-mail, senha e escala salva
+  python admin.py sair <email>      derruba a conta em todos os aparelhos (no próximo, entra de novo pelo código)
+  python admin.py apagar <email>    apaga a conta a pedido da pessoa (LGPD, art. 18): e-mail e escala salva
 
-A senha temporária aparece só aqui, uma vez; não fica em log.
+Não há senha: quem quer entrar recebe um código de 6 números no e-mail.
 """
-import secrets
 import sys
 
 import banco
@@ -23,9 +22,8 @@ def liberar(email):
     banco.criar_tabelas()
     u = _conta(email)
     if not u:
-        temporaria = secrets.token_urlsafe(9)
-        u = contas.criar(email, temporaria, "admin")
-        print(f"Conta criada: {u['email']}  senha temporária: {temporaria}")
+        u = contas.criar(email, "admin")
+        print(f"Conta criada: {u['email']} (entra pelo código no e-mail)")
     contas.liberar_acesso(u["id"])
     banco.log(u["id"], u["email"], "admin", "cortesia")
     print(f"Acesso ilimitado liberado para {u['email']}")
@@ -40,28 +38,27 @@ def revogar(email):
     print(f"Acesso de {u['email']} revogado")
 
 
-def nova_senha(email):
+def sair(email):
+    """Para quem perdeu o celular logado: troca o segredo da sessão e todos os aparelhos saem."""
     u = _conta(email)
     if not u:
         sys.exit("Conta não encontrada.")
-    temporaria = secrets.token_urlsafe(9)
     with banco.conexao() as con:
-        con.execute("UPDATE usuarios SET senha_hash = %s, tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = %s",
-                    (contas.generate_password_hash(temporaria), u["id"]))
-    banco.log(u["id"], u["email"], "admin", "senha_temporaria")
-    print(f"Senha temporária de {u['email']}: {temporaria}")
+        con.execute("UPDATE usuarios SET senha_hash = %s WHERE id = %s", (contas.nova_chave_sessao(), u["id"]))
+    banco.log(u["id"], u["email"], "admin", "sessoes_derrubadas")
+    print(f"{u['email']} saiu de todos os aparelhos")
 
 
 def apagar(email):
-    """Pedido de exclusão (LGPD, art. 18). Apaga a escala salva e os códigos de recuperação e tira o e-mail
-    e a senha da conta. Ficam, por obrigação legal, os pedidos (lei fiscal) e o registro de acesso (Marco Civil,
+    """Pedido de exclusão (LGPD, art. 18). Apaga a escala salva e os códigos de entrar e tira o e-mail
+    da conta. Ficam, por obrigação legal, os pedidos (lei fiscal) e o registro de acesso (Marco Civil,
     6 meses), como diz a Política de Privacidade. A linha da conta fica sem dado pessoal, porque os pedidos apontam para ela."""
     u = _conta(email)
     if not u:
         sys.exit("Conta não encontrada.")
     with banco.conexao() as con:
         n_pedidos = con.execute("SELECT COUNT(*) AS n FROM pedidos WHERE usuario_id = %s", (u["id"],)).fetchone()["n"]
-    print(f"Vai apagar a conta {u['email']} (id {u['id']}): e-mail, senha e escala salva. "
+    print(f"Vai apagar a conta {u['email']} (id {u['id']}): e-mail e escala salva. "
           f"Ficam {n_pedidos} pedido(s) e o registro de acesso, por obrigação legal.")
     if input("Digite APAGAR para confirmar: ").strip() != "APAGAR":
         sys.exit("Nada foi apagado.")
@@ -69,10 +66,10 @@ def apagar(email):
     with banco.conexao() as con:
         con.execute("DELETE FROM escalas WHERE usuario_id = %s", (u["id"],))
         con.execute("DELETE FROM recuperacoes WHERE usuario_id = %s", (u["id"],))
-        # senha nova aleatória: a sessão leva a versão da senha, então os aparelhos logados saem na hora
+        # segredo de sessão novo: a sessão leva a versão dele, então os aparelhos logados saem na hora
         con.execute("UPDATE usuarios SET email = %s, senha_hash = %s, liberado_em = NULL, tentativas_falhas = 0, "
                     "bloqueado_ate = NULL, bloqueios_seguidos = 0 WHERE id = %s",
-                    (f"apagada-{u['id']}@conta.apagada", contas.generate_password_hash(secrets.token_urlsafe(32)), u["id"]))
+                    (f"apagada-{u['id']}@conta.apagada", contas.nova_chave_sessao(), u["id"]))
     print(f"Conta {u['id']} apagada. O mesmo e-mail pode criar uma conta nova do zero.")
 
 
@@ -81,8 +78,8 @@ if __name__ == "__main__":
         liberar(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "revogar":
         revogar(sys.argv[2])
-    elif len(sys.argv) == 3 and sys.argv[1] == "senha":
-        nova_senha(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "sair":
+        sair(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "apagar":
         apagar(sys.argv[2])
     else:

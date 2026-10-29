@@ -329,7 +329,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 .campos label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); font-weight: 700; }
 .campos .botao.principal { margin-top: 4px; }
 .links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 14px; margin-top: 12px; }
-.mostrar { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--tinta-2); font-weight: 400 !important; flex-direction: row !important; }
+.sugestao-email { margin: -4px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--aviso-fundo); font-size: 14px; }
 
 .lado { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 700px) { .lado { grid-template-columns: minmax(0, 1fr); } }
@@ -604,7 +604,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       </details>
       <details>
         <summary>Precisa instalar alguma coisa?</summary>
-        <p>Não. Funciona no navegador, no celular ou no computador. A conta é a mesma nos dois.</p>
+        <p>Não. Funciona no navegador, no celular ou no computador. A conta é a mesma nos dois: para entrar no
+          outro aparelho, mandamos um código para o seu e-mail. Não tem senha para lembrar.</p>
       </details>
     </section>
   </section>
@@ -1579,67 +1580,65 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('pago').scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
   }
 
-  // ----- janela de conta: criar, entrar, esqueci, redefinir, minha conta -----
+  // ----- janela de conta, sem senha: comprar (só o e-mail), entrar (código por e-mail), minha conta -----
+  // Na compra não pede código: tirar a pessoa do navegador do Instagram para ir buscar o e-mail, antes de
+  // pagar, perde a venda. O código só aparece para entrar em outro aparelho ou com e-mail que já tem conta.
   let aposConta = null;
   const VISTAS = {
     criar: {
-      titulo: 'Crie sua conta',
-      sub: 'Sua escala fica guardada na conta: volte quando quiser, em qualquer aparelho.',
+      titulo: 'Liberar a escala completa',
+      sub: 'Digite o seu e-mail e siga para o pagamento. É por ele que você volta à sua escala em outro aparelho, sem senha.',
       html: `<form class="campos" data-acao="criar">
-        <label>E-mail <input type="email" name="email" autocomplete="email" required></label>
-        <label>Crie uma senha (mínimo 8 caracteres) <input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
-        <label class="mostrar"><input type="checkbox" data-mostrar> mostrar senha</label>
-        <p class="termos-conta">Ao criar a conta, você concorda com os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>
+        <label>Seu e-mail <input type="email" name="email" autocomplete="email" inputmode="email" required></label>
+        <p class="sugestao-email" hidden></p>
+        <p class="termos-conta">Ao continuar, você concorda com os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>
           e a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
-        <button class="botao principal" type="submit">Criar conta e continuar</button>
+        <button class="botao principal" type="submit">Continuar para o pagamento</button>
       </form>
-      <div class="links"><button type="button" class="botao-link" data-vista="entrar">Já tenho conta</button></div>`,
+      <div class="links"><button type="button" class="botao-link" data-vista="entrar">Já comprei: entrar</button></div>`,
     },
     entrar: {
       titulo: 'Entrar',
-      sub: 'Use o e-mail e a senha que você criou.',
+      sub: 'Não tem senha: mandamos um código de 6 números para o e-mail da sua compra.',
+      html: `<form class="campos" data-acao="codigo">
+        <label>E-mail <input type="email" name="email" autocomplete="email" inputmode="email" required></label>
+        <button class="botao principal" type="submit">Mandar código</button>
+      </form>
+      <p class="termos-conta links">Ainda não comprou? A conta é criada quando você libera a escala.</p>`,
+    },
+    codigo: {
+      titulo: 'Digite o código',
+      sub: '',
       html: `<form class="campos" data-acao="entrar">
-        <label>E-mail <input type="email" name="email" autocomplete="email" required></label>
-        <label>Senha <input type="password" name="senha" autocomplete="current-password" required></label>
-        <label class="mostrar"><input type="checkbox" data-mostrar> mostrar senha</label>
+        <input type="hidden" name="email">
+        <label>Código de 6 números <input type="text" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
         <button class="botao principal" type="submit">Entrar</button>
       </form>
-      <div class="links"><button type="button" class="botao-link" data-vista="esqueci">Esqueci minha senha</button>
-        <button type="button" class="botao-link" data-vista="criar">Criar conta</button></div>`,
-    },
-    esqueci: {
-      titulo: 'Esqueci minha senha',
-      sub: 'Mandamos um código de 6 números para o e-mail da sua conta.',
-      html: `<form class="campos" data-acao="esqueci">
-        <label>E-mail da conta <input type="email" name="email" autocomplete="email" required></label>
-        <button class="botao principal" type="submit">Mandar código por e-mail</button>
-      </form>
-      <div class="links"><button type="button" class="botao-link" data-vista="entrar">Voltar para entrar</button></div>`,
-    },
-    redefinir: {
-      titulo: 'Criar nova senha',
-      sub: 'Digite o código que chegou no seu e-mail. Ele vale por 15 minutos.',
-      html: `<form class="campos" data-acao="redefinir">
-        <label>E-mail da conta <input type="email" name="email" autocomplete="email" required></label>
-        <label>Código <input type="text" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
-        <label>Nova senha (mínimo 8 caracteres) <input type="password" name="nova" autocomplete="new-password" minlength="8" required></label>
-        <label class="mostrar"><input type="checkbox" data-mostrar> mostrar senha</label>
-        <button class="botao principal" type="submit">Salvar nova senha e entrar</button>
-      </form>
-      <div class="links"><button type="button" class="botao-link" data-vista="esqueci">Mandar outro código</button></div>`,
+      <div class="links"><button type="button" class="botao-link" data-reenviar>Mandar outro código</button>
+        <button type="button" class="botao-link" data-vista="entrar">Usar outro e-mail</button></div>`,
     },
     conta: {
       titulo: 'Minha conta',
       sub: '',
-      html: `<form class="campos" data-acao="trocar">
-        <label>Senha atual <input type="password" name="atual" autocomplete="current-password" required></label>
-        <label>Nova senha (mínimo 8 caracteres) <input type="password" name="nova" autocomplete="new-password" minlength="8" required></label>
-        <button class="botao" type="submit">Trocar senha</button>
-      </form>
-      <div class="reembolso" id="reembolso" hidden></div>
+      html: `<div class="reembolso" id="reembolso" hidden></div>
       <div class="links"><button type="button" class="botao-link" data-sair>Sair da conta</button></div>`,
     },
   };
+  // erro de digitação nos e-mails mais comuns: sem o e-mail certo, a pessoa não entra em outro aparelho nem recebe o recibo
+  const DOMINIOS = {
+    'gmail.com': ['gmail.con', 'gmail.co', 'gmail.cm', 'gmail.om', 'gmail.com.br', 'gmial.com', 'gmal.com', 'gmai.com',
+      'gamil.com', 'gnail.com', 'gmaill.com', 'gimail.com', 'gemail.com', 'gmail.comm'],
+    'hotmail.com': ['hotmail.con', 'hotmail.co', 'hotmal.com', 'hotmial.com', 'hotmai.com', 'hotmil.com', 'hotamil.com', 'hotmail.comm'],
+    'outlook.com': ['outlook.con', 'outlok.com', 'outllook.com', 'outloo.com'],
+    'yahoo.com.br': ['yahoo.con.br', 'yaho.com.br', 'yahoo.com.b'],
+    'icloud.com': ['icloud.con', 'iclod.com', 'icoud.com'],
+  };
+  function sugerirEmail(email) {
+    const [nome, dominio] = String(email).trim().toLowerCase().split('@');
+    if (!nome || !dominio) return null;
+    const certo = Object.keys(DOMINIOS).find(d => DOMINIOS[d].includes(dominio));
+    return certo ? `${nome}@${certo}` : null;
+  }
   // garantia de 7 dias: o próprio cliente cancela e o estorno sai na hora pelo Mercado Pago
   async function renderReembolso() {
     try { estado.eu = Object.assign({}, estado.eu, await api('GET', '/api/eu')); } catch (_) { return; }
@@ -1685,19 +1684,20 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     if (nome === 'conta' && estado.eu) {
       sub = `${estado.eu.email} · ` + (estado.eu.ativo ? 'acesso ilimitado' : 'sem acesso ativo');
     }
+    if (nome === 'codigo') sub = `Mandamos para ${emailDigitado}. Ele vale por 15 minutos; confira também o spam.`;
     $('dlg-sub').textContent = aviso || sub;
     $('dlg-corpo').innerHTML = v.html;
     $('dlg-erro').hidden = true;
     const email = $('dlg-corpo').querySelector('input[name="email"]');
     if (email && emailDigitado) email.value = emailDigitado;
     if (nome === 'conta' && SERVIDOR && estado.eu) renderReembolso();
-    const primeiro = $('dlg-corpo').querySelector(email && emailDigitado ? 'input:not([name="email"])' : 'input');
+    const primeiro = $('dlg-corpo').querySelector(email && emailDigitado ? 'input:not([name="email"])' : 'input:not([type="hidden"])');
     // não rouba o foco de quem já tocou num campo (senão o que se digita cai no e-mail)
     if (primeiro) setTimeout(() => { if (!$('dlg-corpo').contains(document.activeElement)) primeiro.focus(); }, 30);
   }
   function abrirConta(nome, depois) {
     aposConta = depois || null;
-    mostrarVista(nome, nome === 'criar' && depois ? 'Crie sua conta para liberar e guardar a sua escala. Depois você paga com Pix ou cartão.' : '');
+    mostrarVista(nome);
     const d = $('dlg-conta');
     if (!d.open) d.showModal();
   }
@@ -1709,6 +1709,24 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       mostrarVista(vista.dataset.vista);
       return;
     }
+    const reenviar = ev.target.closest('[data-reenviar]');
+    if (reenviar) {
+      reenviar.disabled = true;
+      $('dlg-erro').hidden = true;
+      try {
+        await api('POST', '/api/codigo', { email: emailDigitado });
+        $('dlg-sub').textContent = `Mandamos outro código para ${emailDigitado}. Use o do e-mail mais novo.`;
+      } catch (e) { $('dlg-erro').hidden = false; $('dlg-erro').textContent = e.message; }
+      reenviar.disabled = false;
+      return;
+    }
+    const usar = ev.target.closest('[data-usar-email]');
+    if (usar) {
+      const form = $('dlg-corpo').querySelector('form');
+      form.querySelector('input[name="email"]').value = usar.dataset.usarEmail;
+      form.requestSubmit();
+      return;
+    }
     const reemb = ev.target.closest('[data-reembolso]');
     if (reemb) { pedirReembolso(reemb); return; }
     if (ev.target.closest('[data-sair]')) {
@@ -1716,11 +1734,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       location.href = location.pathname;
     }
   });
-  $('dlg-corpo').addEventListener('change', ev => {
-    if (ev.target.matches('[data-mostrar]')) {
-      $('dlg-corpo').querySelectorAll('input[name="senha"], input[name="nova"], input[name="atual"]')
-        .forEach(i => { i.type = ev.target.checked ? 'text' : 'password'; });
-    }
+  // mudou o e-mail depois da sugestão: confere de novo
+  $('dlg-corpo').addEventListener('input', ev => {
+    if (ev.target.name === 'email' && ev.target.form) delete ev.target.form.dataset.conferido;
   });
   $('dlg-corpo').addEventListener('submit', async ev => {
     ev.preventDefault();
@@ -1730,20 +1746,35 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('dlg-erro').hidden = true;
     try {
       const acao = form.dataset.acao;
-      if (dados.email) emailDigitado = dados.email;
-      if (acao === 'esqueci') {
-        const r = await api('POST', '/api/senha/esqueci', { email: dados.email });
-        mostrarVista('redefinir', r.mensagem);
+      if (dados.email) emailDigitado = dados.email.trim();
+      if (acao === 'criar' && !form.dataset.conferido) {
+        const sug = sugerirEmail(dados.email);
+        if (sug) {
+          // pergunta uma vez; tocar de novo em Continuar segue com o que foi digitado
+          form.dataset.conferido = '1';
+          const box = form.querySelector('.sugestao-email');
+          box.innerHTML = `Você quis dizer <b>${esc(sug)}</b>? <button type="button" class="botao-link" data-usar-email="${esc(sug)}">Usar este</button>`;
+          box.hidden = false;
+          return;
+        }
+      }
+      if (acao === 'codigo') {
+        await api('POST', '/api/codigo', { email: emailDigitado });
+        mostrarVista('codigo');
         return;
       }
-      if (acao === 'trocar') {
-        await api('POST', '/api/senha/trocar', { atual: dados.atual, nova: dados.nova });
-        mostrarVista('conta', 'Senha trocada. Os outros aparelhos vão pedir a senha nova.');
-        return;
+      if (acao === 'criar') {
+        try {
+          estado.eu = Object.assign({ logado: true }, await api('POST', '/api/conta', { email: emailDigitado }));
+        } catch (e) {
+          // e-mail que já tem conta: o servidor já mandou o código, e depois de entrar a compra segue
+          if (e.status === 409) { mostrarVista('codigo', e.message); return; }
+          throw e;
+        }
+        rastreia('conta', { method: 'email' });
+      } else {
+        estado.eu = Object.assign({ logado: true }, await api('POST', '/api/entrar', { email: emailDigitado, codigo: dados.codigo }));
       }
-      const rota = { criar: '/api/conta', entrar: '/api/entrar', redefinir: '/api/senha/redefinir' }[acao];
-      estado.eu = Object.assign({ logado: true }, await api('POST', rota, dados));
-      if (acao === 'criar') rastreia('conta', { method: 'email' });
       $('dlg-conta').close();
       const depois = aposConta;
       aposConta = null;

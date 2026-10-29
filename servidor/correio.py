@@ -1,4 +1,4 @@
-"""Envio de e-mail (código de recuperação de senha) pelo Resend da CarvalhoIA.
+"""Envio de e-mail (código para entrar e recibo da compra) pelo Resend da CarvalhoIA.
 
 Mesmo serviço do DanfeZap, com o domínio carvalhoia.com já verificado. Chamada HTTP direta,
 sem SDK. Sem RESEND_API_KEY (desenvolvimento), o texto só aparece no log do servidor.
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _sem_codigo(assunto):
-    # o assunto leva o código de recuperação: no log ele nunca aparece (quem lê o log tomaria a conta)
+    # o assunto leva o código de entrar: no log ele nunca aparece (quem lê o log tomaria a conta)
     return re.sub(r"\d{4,}", "******", assunto)
 
 
@@ -29,17 +29,17 @@ def _p(texto, tamanho=16, cor="#17231e", margem=14):
 
 def _html(texto, codigo=None, minutos=None):
     """O e-mail com a cara do site. Só tabela e estilo na linha: é o que Gmail, Outlook e celular respeitam.
-    Com `codigo`, usa o modelo do código de senha, com o número grande numa caixa, fácil de ler e de copiar;
+    Com `codigo`, usa o modelo do código de entrar, com o número grande numa caixa, fácil de ler e de copiar;
     sem ele, cada linha do texto vira um parágrafo."""
     site = config.BASE_URL
     if codigo:
         miolo = (
             _p("Olá!")
-            + _p("Recebemos um pedido para criar uma nova senha na sua conta da Escala Certa. Use este código:", margem=12)
+            + _p("Use este código para entrar na sua conta da Escala Certa:", margem=12)
             + '<div style="margin:0 0 10px;padding:18px 0;background:#e3efeb;border-radius:10px;text-align:center;'
               f'font:bold 34px/1 \'Courier New\',monospace;letter-spacing:8px;color:#0e5f52">{html.escape(codigo)}</div>'
             + _p(f"Vale por {minutos} minutos e só pode ser usado uma vez.", 13, "#56655e", 20)
-            + _p("Se não foi você que pediu, pode ignorar este e-mail: a sua senha continua a mesma.", 14, "#56655e")
+            + _p("Se não foi você que pediu, pode ignorar este e-mail: ninguém entra na sua conta sem este código.", 14, "#56655e")
         )
     else:
         miolo = "".join(_p(linha) for linha in texto.split("\n") if linha.strip())
@@ -83,5 +83,5 @@ def enviar(para, assunto, texto, codigo=None, minutos=None):
     except urllib.error.HTTPError as e:
         logger.error("Resend recusou '%s': HTTP %s %s", _sem_codigo(assunto), e.code, e.read()[:300])
     except Exception:
-        # não conta ao visitante (a resposta da recuperação é sempre igual), mas fica no log
+        # não conta ao visitante (a resposta do pedido de código é sempre igual), mas fica no log
         logger.exception("Falha ao mandar e-mail '%s'", _sem_codigo(assunto))

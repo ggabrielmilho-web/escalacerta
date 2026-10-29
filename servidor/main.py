@@ -1,12 +1,10 @@
 """Escala Certa: site estático + contas + pagamento pelo Mercado Pago.
 
 Rotas:
-  POST /api/conta                 cria a conta (e-mail e senha) e já entra
-  POST /api/entrar | /api/sair    login e logout
+  POST /api/conta                 cria a conta só com o e-mail, na compra, e já entra (e-mail que já tem conta: manda código)
+  POST /api/codigo                manda código de 6 números por e-mail para entrar (Resend da CarvalhoIA)
+  POST /api/entrar | /api/sair    entra com e-mail + código; sai
   GET  /api/eu                    quem está logado e até quando vai o acesso
-  POST /api/senha/esqueci         manda código de 6 números por e-mail (Resend da CarvalhoIA)
-  POST /api/senha/redefinir       código + nova senha (já entra)
-  POST /api/senha/trocar          troca a senha logado
   POST /api/pedido                cria a cobrança (Checkout Pro) para a conta logada
   GET  /api/pedido/{id}           situação do pedido; pago → acesso ilimitado
   POST /api/reembolso             o cliente cancela a compra em até 7 dias: estorno no Mercado Pago e sai o acesso
@@ -57,20 +55,20 @@ def ip_de(request: Request):
     return (xff.split(",")[0].strip() if xff else (request.client.host if request.client else ""))[:45]
 
 
-def _versao_senha(u):
-    # vai junto na sessão: trocar a senha derruba as sessões abertas em outros aparelhos
+def _versao_sessao(u):
+    # vai junto na sessão: trocar o segredo da conta (apagar a conta) derruba as sessões abertas em todo aparelho
     return hashlib.sha256(u["senha_hash"].encode()).hexdigest()[:16]
 
 
 def iniciar_sessao(request: Request, u):
     request.session.clear()
-    request.session.update({"uid": u["id"], "sv": _versao_senha(u)})
+    request.session.update({"uid": u["id"], "sv": _versao_sessao(u)})
 
 
 def usuario_logado(request: Request, obrigatorio=True):
     uid = request.session.get("uid")
     u = contas.buscar(uid) if uid else None
-    if not u or request.session.get("sv") != _versao_senha(u):
+    if not u or request.session.get("sv") != _versao_sessao(u):
         request.session.clear()
         if obrigatorio:
             raise HTTPException(401, "Entre na sua conta para continuar.")
@@ -79,41 +77,37 @@ def usuario_logado(request: Request, obrigatorio=True):
 
 
 # ---------------- contas ----------------
-class NovaConta(BaseModel):
+class Email(BaseModel):
     email: str
-    senha: str
 
 
 class Login(BaseModel):
     email: str
-    senha: str
-
-
-class Esqueci(BaseModel):
-    email: str
-
-
-class Redefinir(BaseModel):
-    email: str
     codigo: str
-    nova: str
-
-
-class Troca(BaseModel):
-    atual: str
-    nova: str
 
 
 @app.post("/api/conta")
-def criar_conta(dados: NovaConta, request: Request):
-    u = contas.criar(dados.email, dados.senha, ip_de(request))
+def criar_conta(dados: Email, request: Request):
+    try:
+        u = contas.criar(dados.email, ip_de(request))
+    except contas.Erro as e:
+        # e-mail que já tem conta só entra com o código; a página troca para a tela do código
+        if e.status == 409:
+            contas.pedir_codigo(dados.email, ip_de(request), correio.enviar)
+        raise
     iniciar_sessao(request, u)
     return contas.publico(u)
 
 
+@app.post("/api/codigo")
+def pedir_codigo(dados: Email, request: Request):
+    contas.pedir_codigo(dados.email, ip_de(request), correio.enviar)
+    return {"ok": True, "mensagem": "Se esse e-mail tiver conta, o código de 6 números chega em instantes. Confira também o spam."}
+
+
 @app.post("/api/entrar")
 def entrar(dados: Login, request: Request):
-    u = contas.entrar(dados.email, dados.senha, ip_de(request))
+    u = contas.entrar(dados.email, dados.codigo, ip_de(request))
     iniciar_sessao(request, u)
     return contas.publico(u)
 
@@ -132,27 +126,6 @@ def eu(request: Request):
     p = pedido_reembolsavel(u["id"])
     ate = banco.iso(p["aprovado"] + timedelta(days=REEMBOLSO_DIAS)) if p else None
     return {"logado": True, **contas.publico(u), "reembolso_ate": ate}
-
-
-@app.post("/api/senha/esqueci")
-def esqueci(dados: Esqueci, request: Request):
-    contas.pedir_codigo(dados.email, ip_de(request), correio.enviar)
-    return {"ok": True, "mensagem": "Se existir conta com esse e-mail, mandamos um código de 6 números para ele. Confira também o spam."}
-
-
-@app.post("/api/senha/redefinir")
-def redefinir(dados: Redefinir, request: Request):
-    u = contas.redefinir(dados.email, dados.codigo, dados.nova, ip_de(request))
-    iniciar_sessao(request, u)
-    return contas.publico(u)
-
-
-@app.post("/api/senha/trocar")
-def trocar(dados: Troca, request: Request):
-    u = usuario_logado(request)
-    contas.trocar_senha(u["id"], dados.atual, dados.nova, ip_de(request))
-    iniciar_sessao(request, contas.buscar(u["id"]))      # mantém este aparelho; os outros caem
-    return {"ok": True}
 
 
 # ---------------- pagamento ----------------
@@ -189,10 +162,25 @@ def aprovar(pid, payment_id):
                           (str(payment_id), banco.agora(), pid))
         if cur.rowcount != 1:
             return
-        p = con.execute("SELECT usuario_id FROM pedidos WHERE id = %s", (pid,)).fetchone()
+        p = con.execute("SELECT p.usuario_id, p.valor, u.email FROM pedidos p JOIN usuarios u ON u.id = p.usuario_id "
+                        "WHERE p.id = %s", (pid,)).fetchone()
     contas.liberar_acesso(p["usuario_id"])
     banco.log(p["usuario_id"], None, None, f"pago:{pid}")
     logger.info("Pedido %s aprovado", pid)
+    avisar_compra(p["email"], p["valor"], pid)
+
+
+def avisar_compra(email, valor, pid):
+    """O recibo da compra, que também ensina a entrar em outro aparelho (sem senha, pelo código no e-mail)."""
+    valor = f"{float(valor):.2f}".replace(".", ",")
+    correio.enviar(email, "Compra confirmada: sua Escala Certa está liberada",
+                   "Olá!\n"
+                   f"Recebemos o seu pagamento de R$ {valor} (pedido {pid}). O seu acesso à Escala Certa está liberado, "
+                   "sem prazo para acabar: monte e ajuste a escala quantas vezes quiser.\n"
+                   "No aparelho em que você comprou, você já está dentro. Para abrir em outro celular ou computador, "
+                   f"entre em {config.BASE_URL} com este e-mail: mandamos um código de 6 números para ele. Não tem senha.\n"
+                   f"Garantia de {REEMBOLSO_DIAS} dias: se não gostar, cancele em \"Minha conta\" e o dinheiro volta na hora.\n"
+                   "Dúvidas? Escreva para gabriel@carvalhoia.com.")
 
 
 @app.get("/api/pedido/{pid}")
