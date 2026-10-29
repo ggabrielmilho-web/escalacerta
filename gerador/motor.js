@@ -381,6 +381,7 @@
   // (domingos mais bem divididos); por fim cada regra no seu rodízio, com o ciclo do tamanho da equipe.
   // `rapido` pula as variantes quando só interessa saber se a escala fecha (conta de quantas pessoas faltam).
   function montar(cfgBruta, semente, semAlternativas, rapido) {
+    if (temTurnos(cfgBruta)) return montarTurnos(cfgBruta, semente);
     const cfg = normalizar(cfgBruta);
     const misto = cfg.art386 && cfg.domingoCada > 2 && cfg.sexos.includes('M') && cfg.sexos.some(s => s !== 'M');
     const junto = misto ? Object.assign({}, cfgBruta, { sexos: cfg.nomes.map(() => 'F') }) : null;
@@ -560,6 +561,7 @@
 
   // Confere uma escala (gerada ou editada à mão). Marca as células com problema.
   function validar(cfgBruta, seg0, grade) {
+    if (temTurnos(cfgBruta)) return validarTurnos(cfgBruta, seg0, grade);
     const cfg = normalizar(cfgBruta);
     const K = cfg.maxSeguidos;
     const ini = diaDe(cfg.inicio), fim = diaDe(cfg.fim);
@@ -641,8 +643,87 @@
     return { problemas, avisos, marcas, porPessoa, cobertura, faltaGente };
   }
 
+  // ---------------- turnos fixos ----------------
+  // Cada pessoa fica sempre no mesmo turno (manhã, intermediário, noite…). Então cada turno é uma equipe à
+  // parte, com o próprio mínimo por dia: o motor monta um de cada vez, e a escala da empresa é a junção.
+  // cfg.turnos = [{ nome, minimo: [7] }] e cfg.turnoDe[e] = turno da pessoa e. Dias abertos, "pode folgar",
+  // ramo, art. 386, dias seguidos e período valem para todos os turnos.
+  function temTurnos(cfg) { return !!(cfg && Array.isArray(cfg.turnos) && cfg.turnos.length && Array.isArray(cfg.turnoDe)); }
+  function membrosDosTurnos(cfg) {
+    return cfg.turnos.map((_, t) => cfg.turnoDe.map((x, e) => (x === t ? e : -1)).filter(e => e >= 0));
+  }
+  // a equipe de um turno, no formato de sempre (sem turnos): é o que montar, faltam e menorEquipe recebem
+  function doTurno(cfg, t) {
+    const membros = membrosDosTurnos(cfg)[t];
+    const sub = Object.assign({}, cfg, {
+      nomes: membros.map(e => cfg.nomes[e]), sexos: membros.map(e => (cfg.sexos || [])[e]), minimo: cfg.turnos[t].minimo,
+    });
+    delete sub.turnos; delete sub.turnoDe;
+    return sub;
+  }
+  // a configuração da empresa toda: o mínimo é a soma dos turnos (só para mostrar; cada turno é conferido no seu)
+  function cfgJunto(cfgBruta) {
+    const cfg = normalizar(Object.assign({}, cfgBruta, { minimo: [0, 1, 2, 3, 4, 5, 6].map(d =>
+      cfgBruta.turnos.reduce((s, t) => s + Math.max(0, Math.floor(+t.minimo[d] || 0)), 0)) }));
+    cfg.turnos = cfgBruta.turnos.map((t, i) => ({ nome: String(t.nome || '').trim() || `Turno ${i + 1}`,
+      minimo: t.minimo.slice(0, 7).map(v => Math.max(0, Math.floor(+v || 0))) }));
+    cfg.turnoDe = cfg.nomes.map((_, e) => cfgBruta.turnoDe[e]);
+    return cfg;
+  }
+  // junta as escalas já montadas de cada turno (na ordem de cfg.turnos) numa escala só, na ordem das pessoas
+  function juntarTurnos(cfgBruta, resultados) {
+    const cfg = cfgJunto(cfgBruta), membros = membrosDosTurnos(cfg);
+    const ruim = resultados.findIndex(r => !r.ok);
+    if (ruim >= 0) {
+      const nome = cfg.turnos[ruim].nome;
+      return { ok: false, cfg, turno: ruim,
+        erros: resultados[ruim].erros.map(e => Object.assign({}, e, { titulo: `${nome}: ${e.titulo}` })) };
+    }
+    const base = resultados[0];
+    const grade = Array(cfg.nomes.length), rodizio = Array(cfg.nomes.length);
+    resultados.forEach((r, t) => membros[t].forEach((e, j) => { grade[e] = r.grade[j]; rodizio[e] = r.rodizio[j]; }));
+    const periodos = rodizio.map(r => r.periodo);
+    return {
+      ok: true, cfg, grade, rodizio, seg0: base.seg0, semanas: base.semanas, ini: base.ini, fim: base.fim, feriados: base.feriados,
+      repete: Math.max(...periodos), repeteMin: Math.min(...periodos),
+      porTurno: resultados.map(r => ({ repete: r.repete, repeteMin: r.repeteMin })),
+    };
+  }
+  function montarTurnos(cfgBruta, semente) {
+    const cfg = cfgJunto(cfgBruta);
+    const vazio = cfg.turnos.findIndex((_, t) => !membrosDosTurnos(cfg)[t].length);
+    if (vazio >= 0) return { ok: false, cfg, turno: vazio,
+      erros: [{ titulo: `${cfg.turnos[vazio].nome}: turno sem ninguém`, texto: 'Coloque pelo menos uma pessoa no turno ou tire o turno.', sugestoes: [] }] };
+    return juntarTurnos(cfgBruta, cfg.turnos.map((_, t) => montar(doTurno(cfg, t), semente)));
+  }
+  // confere cada turno contra o próprio mínimo; marcas e totais voltam na ordem das pessoas da empresa
+  function validarTurnos(cfgBruta, seg0, grade) {
+    const cfg = cfgJunto(cfgBruta), membros = membrosDosTurnos(cfg);
+    const total = grade.length ? grade[0].length : 0;
+    const marcas = grade.map(() => null), porPessoa = grade.map(() => null);
+    const problemas = [], avisos = [], cobertura = Array(total).fill(null), faltaGente = Array(total).fill(false);
+    const coberturaTurno = [], faltaTurno = [];
+    membros.forEach((m, t) => {
+      const v = validar(doTurno(cfg, t), seg0, m.map(e => grade[e]));
+      const nome = cfg.turnos[t].nome;
+      m.forEach((e, j) => { marcas[e] = v.marcas[j]; porPessoa[e] = v.porPessoa[j]; });
+      const deVolta = p => Object.assign({}, p, { turno: t, pessoa: p.pessoa >= 0 ? m[p.pessoa] : -1,
+        texto: p.pessoa >= 0 ? p.texto : `${nome} · ${p.texto}` });
+      v.problemas.forEach(p => problemas.push(deVolta(p)));
+      v.avisos.forEach(a => avisos.push(deVolta(a)));
+      coberturaTurno.push(v.cobertura);
+      faltaTurno.push(v.faltaGente);
+      v.cobertura.forEach((n, k) => { if (n !== null) cobertura[k] = (cobertura[k] || 0) + n; });
+      v.faltaGente.forEach((f, k) => { if (f) faltaGente[k] = true; });
+    });
+    problemas.sort((a, b) => a.k - b.k);
+    avisos.sort((a, b) => a.k - b.k);
+    return { problemas, avisos, marcas, porPessoa, cobertura, faltaGente, coberturaTurno, faltaTurno };
+  }
+
   const api = { DIAS, DIAS_LONGOS, diaDe, isoDe, diaSemana, ddmm, feriados, planejar, montar, validar,
     faltam, menorEquipe, descreveRegra: c => descreveRegra(normalizar(c)),
+    temTurnos, membrosDosTurnos, doTurno, juntarTurnos,
     _interno: { distribuir, ordenar, aleatorio, normalizar, regraDomingo } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.MotorEscala = api;

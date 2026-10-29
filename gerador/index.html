@@ -90,6 +90,17 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--acento);
 .tab-dias td:first-child { text-align: left; font-weight: 700; }
 .tab-dias input[type="number"] { width: 64px; text-align: center; font-family: var(--mono); }
 .tab-dias tr.fechado td:not(:first-child):not(:nth-child(2)) { opacity: 0.35; }
+.tab-dias-rolagem { overflow-x: auto; }
+.tab-dias.com-turnos input[type="number"] { width: 52px; }
+.tab-dias .curto { display: none; }
+.tab-dias .longo { display: inline; }     /* sem turnos o nome do dia cabe inteiro, até no celular */
+@media (max-width: 600px) {
+  .tab-dias.com-turnos .longo { display: none; }
+  .tab-dias.com-turnos .curto { display: inline; }
+  .tab-dias.com-turnos input[type="number"] { width: 46px; padding-inline: 4px; }
+  .tab-dias.com-turnos th, .tab-dias.com-turnos td { padding-inline: 2px; }
+}
+.tab-dias .turno-col { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: 11px; }
 
 .botao { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--linha-forte); background: var(--cartao); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 700; white-space: nowrap; }
 .botao:hover { border-color: var(--acento); color: var(--acento); }
@@ -241,6 +252,21 @@ table.escala { border-collapse: separate; border-spacing: 0; font-size: 13.5px; 
 .cob.falta { background: var(--erro-fundo); color: var(--erro); }
 .cob.um { background: var(--aviso-fundo); color: var(--aviso); }
 .cob.cheio { background: var(--azul-fundo); }
+.escala tr.turno-cab th, .escala tr.turno-cab td { background: var(--acento-suave); border-bottom: 1px solid var(--linha-forte); }
+.escala tr.turno-cab th.fixa1 { font-family: var(--display); font-weight: 800; font-size: 13.5px; color: var(--tinta); }
+.escala tr.turno-cab th.fixa1 small { display: block; font-family: var(--texto); font-weight: 400; font-size: 11px; color: var(--tinta-2); }
+.escala tr.trabalhando th, .escala tr.trabalhando td { border-bottom: 2px solid var(--linha-forte); }
+.escala thead tr.turno-cab th { color: var(--tinta); font-family: var(--display); font-weight: 800; font-size: 13px; }
+.escala .turno-ini { border-left: 2px solid var(--linha-forte); }
+.fixa tr.turno-cab th, .fixa tr.turno-cab td, .mini tr.turno-cab td { background: var(--acento-suave); font-weight: 800; }
+.por-turno { width: 100%; border-collapse: collapse; font-size: 14px; }
+.por-turno th { font-family: var(--mono); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tinta-2); text-align: center; padding: 0 6px 6px; }
+.por-turno th:first-child, .por-turno td:first-child { text-align: left; }
+.por-turno td { padding: 7px 6px; text-align: center; border-top: 1px solid var(--linha); font-variant-numeric: tabular-nums; }
+.por-turno td:first-child { font-weight: 700; }
+.por-turno .falta-txt { color: var(--aviso); }
+.por-turno .ok-txt { color: var(--acento); }
+.por-turno .ruim { color: var(--erro); }
 .feriado { color: var(--erro) !important; }
 .curto { display: none; }
 @media (max-width: 600px) {
@@ -262,6 +288,13 @@ input[type="text"] { padding: 7px 9px; border: 1px solid var(--linha); border-ra
 .pessoas.com-sexo .pessoa-linha { grid-template-columns: 22px minmax(0, 1fr) 104px auto; }
 .pessoa-linha .num { font-family: var(--mono); font-size: 12px; color: var(--tinta-2); text-align: right; }
 .pessoa-linha select.falta { border-color: var(--erro); box-shadow: 0 0 0 1px var(--erro); }
+.pessoas.com-turnos { max-height: none; overflow: visible; gap: 12px; }
+.turno-bloco { border: 1px solid var(--linha); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--papel); }
+.turno-topo { display: flex; gap: 8px; align-items: center; }
+.turno-topo .turno-nome { flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 15px; }
+.turno-qtd { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--tinta-2); font-weight: 700; }
+.turno-qtd input { width: 64px; text-align: center; font-family: var(--mono); font-weight: 600; }
+.turno-pessoas { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; padding-right: 2px; }
 .tirar { border: 0; background: none; color: var(--tinta-2); cursor: pointer; font-size: 15px; padding: 4px 6px; border-radius: 6px; }
 .tirar:hover { color: var(--erro); background: var(--erro-fundo); }
 .botao-link { border: 0; background: none; color: var(--acento); font-weight: 700; cursor: pointer; padding: 4px 2px; text-decoration: underline; text-underline-offset: 3px; }
@@ -365,14 +398,27 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   <form id="config" class="painel" novalidate>
     <fieldset class="bloco">
       <legend>1 · Sua equipe hoje</legend>
-      <div class="qtd-linha">
+      <div class="campo">
+        <span class="rotulo-ajuda">A equipe trabalha em turnos?
+          <button type="button" class="ajuda" data-ajuda="ajuda-turnos" aria-expanded="false" aria-label="Como funcionam os turnos">?</button></span>
+        <div class="opcoes" role="radiogroup" aria-label="Trabalha em turnos">
+          <label><input type="radio" name="turnos" value="nao" checked> Não</label>
+          <label><input type="radio" name="turnos" value="sim"> Sim</label>
+        </div>
+      </div>
+      <p class="ajuda-texto" id="ajuda-turnos" hidden>Para quem tem turno fixo: cada pessoa trabalha sempre no mesmo turno, por exemplo só de manhã, só no intermediário ou só à noite. O app monta a escala de cada turno com o mínimo de gente dele e diz quantas pessoas faltam em cada um.</p>
+      <div class="qtd-linha" id="qtd-linha">
         <label for="qtd">Quantas pessoas você tem hoje?</label>
         <input type="number" id="qtd" min="0" max="500" value="5">
       </div>
       <div class="pessoas" id="pessoas"></div>
-      <div class="linha-qtd">
+      <div class="linha-qtd" id="linha-qtd">
         <button type="button" class="botao pequeno" id="adicionar">+ Adicionar pessoa</button>
         <button type="button" class="botao-link" id="abrir-colar" aria-expanded="false">Colar lista de nomes</button>
+      </div>
+      <div class="linha-qtd" id="linha-turnos" hidden>
+        <button type="button" class="botao pequeno" id="adicionar-turno">+ Adicionar turno</button>
+        <span class="dica" id="total-turnos"></span>
       </div>
       <div class="colar" id="colar-bloco" hidden>
         <textarea id="colar" aria-label="Lista de nomes, um por linha" placeholder="Um nome por linha" spellcheck="false"></textarea>
@@ -383,10 +429,12 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 
     <fieldset class="bloco">
       <legend>2 · Funcionamento</legend>
-      <table class="tab-dias">
-        <thead><tr><th>Dia</th><th>Abre</th><th>Mínimo de pessoas</th><th>Pode folgar</th></tr></thead>
-        <tbody id="dias"></tbody>
-      </table>
+      <div class="tab-dias-rolagem">
+        <table class="tab-dias" id="tab-dias">
+          <thead id="dias-cab"><tr><th>Dia</th><th>Abre</th><th>Mínimo de pessoas</th><th>Pode folgar</th></tr></thead>
+          <tbody id="dias"></tbody>
+        </table>
+      </div>
       <p class="dica">Mínimo = quantas pessoas precisam estar trabalhando no dia.</p>
       <p class="dica" id="dica-minimo"></p>
     </fieldset>
@@ -721,6 +769,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     res: null, grade: null, val: null, equipe: null, jaMontou: false,
     maxSeguidos: 5,            // 5 sempre; 6 só quando o cliente aceita a sugestão (a lei permite)
     semente: 0, liberado: false, visao: 'pessoa', mes: 0, meses: [],
+    turnos: null,              // [{ nome }] com turnos fixos; null = equipe única
   };
 
   // ---------- formulário: equipe ----------
@@ -728,22 +777,76 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const r = document.querySelector('input[name="art386"]:checked');
     return r ? r.value === 'sim' : null;
   }
-  function renderPessoas() {
+  // ---------- turnos fixos ----------
+  // Com turnos, cada pessoa tem `turno` (índice em estado.turnos) e a lista fica sempre agrupada na ordem
+  // dos turnos: o motor monta cada turno à parte e as telas mostram um bloco por turno.
+  const TURNOS_PADRAO = ['Manhã', 'Intermediário', 'Noite', 'Madrugada', 'Turno 5'];
+  const MAX_TURNOS = 5;
+  const comTurnos = () => !!estado.turnos;
+  const nomeTurno = t => (estado.turnos[t].nome || '').trim() || `Turno ${t + 1}`;
+  const doTurnoIdx = t => estado.pessoas.map((p, i) => (p.turno === t ? i : -1)).filter(i => i >= 0);
+  function ordenarPorTurno() {
+    estado.pessoas = estado.pessoas.map((p, i) => [p, i]).sort((a, b) => a[0].turno - b[0].turno || a[1] - b[1]).map(x => x[0]);
+  }
+  function ligarTurnos(sim) {
+    if (sim === comTurnos()) return;
+    if (sim) {
+      // a equipe que já está na tela vai dividida em 3 turnos; ninguém fica de fora nem turno vazio
+      estado.turnos = TURNOS_PADRAO.slice(0, 3).map(nome => ({ nome }));
+      while (estado.pessoas.length < 3) estado.pessoas.push({ nome: '', sexo: '' });
+      const n = estado.pessoas.length, T = estado.turnos.length;
+      estado.pessoas.forEach((p, i) => { p.turno = Math.min(T - 1, Math.floor((i * T) / n)); });
+    } else {
+      estado.turnos = null;
+      estado.pessoas.forEach(p => { delete p.turno; });
+    }
+    estado.minimoManual = false;
+    renderDias();
+    renderPessoas();
+  }
+  function linhaPessoa(p, i, num, rotulo) {
     const comSexo = art386() === true;
-    const box = $('pessoas');
-    box.classList.toggle('com-sexo', comSexo);
-    box.innerHTML = estado.pessoas.map((p, i) => `
+    return `
       <div class="pessoa-linha">
-        <span class="num">${i + 1}</span>
-        <input type="text" data-i="${i}" data-campo="nome" value="${esc(p.nome)}" placeholder="Funcionário ${i + 1}" aria-label="Nome da pessoa ${i + 1}">
-        <select data-i="${i}" data-campo="sexo" aria-label="Sexo da pessoa ${i + 1}" ${comSexo ? '' : 'hidden'}>
+        <span class="num">${num}</span>
+        <input type="text" data-i="${i}" data-campo="nome" value="${esc(p.nome)}" placeholder="${esc(rotulo)}" aria-label="Nome da pessoa ${num}${comTurnos() ? ` do turno ${esc(nomeTurno(p.turno))}` : ''}">
+        <select data-i="${i}" data-campo="sexo" aria-label="Sexo da pessoa ${num}" ${comSexo ? '' : 'hidden'}>
           <option value="">Sexo</option>
           <option value="F" ${p.sexo === 'F' ? 'selected' : ''}>Mulher</option>
           <option value="M" ${p.sexo === 'M' ? 'selected' : ''}>Homem</option>
         </select>
-        <button type="button" class="tirar" data-tirar="${i}" aria-label="Remover pessoa ${i + 1}">✕</button>
-      </div>`).join('');
-    $('qtd').value = estado.pessoas.length;
+        <button type="button" class="tirar" data-tirar="${i}" aria-label="Remover pessoa ${num}">✕</button>
+      </div>`;
+  }
+  function renderPessoas() {
+    const box = $('pessoas'), turnos = comTurnos();
+    box.classList.toggle('com-sexo', art386() === true);
+    box.classList.toggle('com-turnos', turnos);
+    $('qtd-linha').hidden = turnos;
+    $('linha-qtd').hidden = turnos;
+    $('linha-turnos').hidden = !turnos;
+    if (!turnos) {
+      box.innerHTML = estado.pessoas.map((p, i) => linhaPessoa(p, i, i + 1, `Funcionário ${i + 1}`)).join('');
+      $('qtd').value = estado.pessoas.length;
+    } else {
+      box.innerHTML = estado.turnos.map((_, t) => {
+        const idx = doTurnoIdx(t), nome = nomeTurno(t);
+        return `<div class="turno-bloco" data-turno="${t}">
+          <div class="turno-topo">
+            <input type="text" class="turno-nome" data-turno-nome="${t}" value="${esc(estado.turnos[t].nome)}" placeholder="Turno ${t + 1}" aria-label="Nome do turno ${t + 1}">
+            <label class="turno-qtd">Pessoas <input type="number" min="0" max="500" data-turno-qtd="${t}" value="${idx.length}" aria-label="Quantas pessoas no turno ${esc(nome)}"></label>
+            ${estado.turnos.length > 2 ? `<button type="button" class="tirar" data-tirar-turno="${t}" aria-label="Tirar o turno ${esc(nome)}">✕</button>` : ''}
+          </div>
+          <div class="turno-pessoas">${idx.map((i, j) => linhaPessoa(estado.pessoas[i], i, j + 1, `${nome} ${j + 1}`)).join('')}</div>
+          <div class="linha-qtd">
+            <button type="button" class="botao pequeno" data-mais-pessoa="${t}">+ Adicionar pessoa</button>
+            <button type="button" class="botao-link" data-colar-turno="${t}">Colar lista de nomes</button>
+          </div>
+        </div>`;
+      }).join('');
+      $('adicionar-turno').hidden = estado.turnos.length >= MAX_TURNOS;
+      $('total-turnos').textContent = `Total: ${plural(estado.pessoas.length, 'pessoa', 'pessoas')} em ${estado.turnos.length} turnos.`;
+    }
     if (!estado.minimoManual) aplicarSugestao(); else mostrarMinimoManual();
   }
   function tamanhoEquipe(n) {
@@ -753,19 +856,62 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     estado.pessoas.length = n;
     renderPessoas();
   }
+  function tamanhoTurno(t, n) {
+    n = Math.max(0, Math.min(500, n | 0));
+    const idx = doTurnoIdx(t);
+    if (n === idx.length) return;
+    if (n > idx.length) {
+      const novos = Array.from({ length: n - idx.length }, () => ({ nome: '', sexo: '', turno: t }));
+      const depois = idx.length ? idx[idx.length - 1] + 1 : estado.pessoas.filter(p => p.turno < t).length;
+      estado.pessoas.splice(depois, 0, ...novos);
+    } else {
+      const sai = new Set(idx.slice(n));
+      estado.pessoas = estado.pessoas.filter((_, i) => !sai.has(i));
+    }
+    renderPessoas();
+  }
   $('qtd').addEventListener('change', () => tamanhoEquipe(+$('qtd').value));
   $('qtd').addEventListener('input', () => { if ($('qtd').value !== '') tamanhoEquipe(+$('qtd').value); });
   $('pessoas').addEventListener('input', ev => {
-    const el = ev.target, i = +el.dataset.i;
+    const el = ev.target;
+    if (el.dataset.turnoNome !== undefined) {
+      // renomear não redesenha a lista (perderia o foco): só os rótulos que mostram o nome
+      estado.turnos[+el.dataset.turnoNome].nome = el.value;
+      renderDiasCab();
+      return;
+    }
+    if (el.dataset.turnoQtd !== undefined) { if (el.value !== '') tamanhoTurno(+el.dataset.turnoQtd, +el.value); return; }
+    const i = +el.dataset.i;
     if (!el.dataset.campo || !estado.pessoas[i]) return;
     estado.pessoas[i][el.dataset.campo] = el.value;
     if (el.dataset.campo === 'sexo') el.classList.remove('falta');
   });
+  $('pessoas').addEventListener('change', ev => {
+    const el = ev.target;
+    if (el.dataset.turnoNome !== undefined) renderPessoas();      // ao sair do campo, os "Manhã 1, Manhã 2" acompanham
+  });
   $('pessoas').addEventListener('click', ev => {
-    const b = ev.target.closest('[data-tirar]');
+    const b = ev.target.closest('[data-tirar], [data-tirar-turno], [data-mais-pessoa], [data-colar-turno]');
     if (!b) return;
-    estado.pessoas.splice(+b.dataset.tirar, 1);
-    renderPessoas();
+    if (b.dataset.tirar !== undefined) {
+      estado.pessoas.splice(+b.dataset.tirar, 1);
+      renderPessoas();
+    } else if (b.dataset.tirarTurno !== undefined) {
+      const t = +b.dataset.tirarTurno, n = doTurnoIdx(t).length;
+      if (n && !window.confirm(`Tirar o turno ${nomeTurno(t)} e as ${plural(n, 'pessoa', 'pessoas')} dele?`)) return;
+      estado.pessoas = estado.pessoas.filter(p => p.turno !== t);
+      estado.pessoas.forEach(p => { if (p.turno > t) p.turno--; });
+      estado.turnos.splice(t, 1);
+      renderDias();
+      renderPessoas();
+    } else if (b.dataset.maisPessoa !== undefined) {
+      const t = +b.dataset.maisPessoa;
+      tamanhoTurno(t, doTurnoIdx(t).length + 1);
+      const ult = $('pessoas').querySelector(`[data-turno="${t}"] .pessoa-linha:last-child input`);
+      if (ult) ult.focus();
+    } else {
+      abrirColar(+b.dataset.colarTurno);
+    }
   });
   $('adicionar').addEventListener('click', () => {
     estado.pessoas.push({ nome: '', sexo: '' });
@@ -773,16 +919,42 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const ult = $('pessoas').querySelector('.pessoa-linha:last-child input');
     if (ult) ult.focus();
   });
-  $('abrir-colar').addEventListener('click', () => {
-    const aberto = $('colar-bloco').hidden;
-    $('colar-bloco').hidden = !aberto;
-    $('abrir-colar').setAttribute('aria-expanded', String(aberto));
-    if (aberto) $('colar').focus();
+  $('adicionar-turno').addEventListener('click', () => {
+    if (estado.turnos.length >= MAX_TURNOS) return;
+    const usados = new Set(estado.turnos.map(x => x.nome));
+    estado.turnos.push({ nome: TURNOS_PADRAO.find(n => !usados.has(n)) || `Turno ${estado.turnos.length + 1}` });
+    estado.pessoas.push({ nome: '', sexo: '', turno: estado.turnos.length - 1 });
+    renderDias();
+    renderPessoas();
   });
+  document.querySelectorAll('input[name="turnos"]').forEach(r => r.addEventListener('change', () => {
+    ligarTurnos(document.querySelector('input[name="turnos"]:checked').value === 'sim');
+  }));
+  // colar a lista de nomes: da equipe toda ou, com turnos, de um turno só
+  let colarTurno = null;
+  function abrirColar(t) {
+    const fechado = $('colar-bloco').hidden;
+    const mesmo = colarTurno === (t === undefined ? null : t);
+    colarTurno = t === undefined ? null : t;
+    const abrir = fechado || !mesmo;
+    $('colar-bloco').hidden = !abrir;
+    $('abrir-colar').setAttribute('aria-expanded', String(abrir && colarTurno === null));
+    $('colar').placeholder = colarTurno === null ? 'Um nome por linha' : `Nomes do turno ${nomeTurno(colarTurno)}, um por linha`;
+    if (abrir) $('colar').focus();
+  }
+  $('abrir-colar').addEventListener('click', () => abrirColar());
   $('usar-colar').addEventListener('click', () => {
     const nomes = $('colar').value.split('\n').map(s => s.trim()).filter(Boolean);
     if (!nomes.length) return;
-    estado.pessoas = nomes.map((nome, i) => ({ nome, sexo: (estado.pessoas[i] || {}).sexo || '' }));
+    if (colarTurno === null) {
+      estado.pessoas = nomes.map((nome, i) => ({ nome, sexo: (estado.pessoas[i] || {}).sexo || '' }));
+    } else {
+      const t = colarTurno, antes = doTurnoIdx(t).map(i => estado.pessoas[i]);
+      estado.pessoas = estado.pessoas.filter(p => p.turno !== t)
+        .concat(nomes.map((nome, j) => ({ nome, sexo: (antes[j] || {}).sexo || '', turno: t })));
+      ordenarPorTurno();
+    }
+    $('colar').value = '';
     $('colar-bloco').hidden = true;
     $('abrir-colar').setAttribute('aria-expanded', 'false');
     renderPessoas();
@@ -809,17 +981,44 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const resto = Math.floor((6 * n - dom) / 6);
     return [resto, resto, resto, resto, resto, resto, dom];
   }
-  $('dias').innerHTML = M.DIAS.map((d, i) => `
+  // sem turnos: uma coluna de mínimo (mi-d); com turnos: uma por turno (mt-t-d). Redesenhar guarda o que já
+  // estava marcado; o mi-d continua na página (escondido) porque a conta sem turnos e a escala salva usam ele
+  function renderDias() {
+    const T = comTurnos() ? estado.turnos.length : 0;
+    const val = (id, padrao, chk) => { const el = $(id); return el ? (chk ? el.checked : el.value) : padrao; };
+    const ab = [0, 1, 2, 3, 4, 5, 6].map(i => val(`ab-${i}`, true, true)), fo = [0, 1, 2, 3, 4, 5, 6].map(i => val(`fo-${i}`, true, true));
+    const mi = [0, 1, 2, 3, 4, 5, 6].map(i => val(`mi-${i}`, '2'));
+    const mt = Array.from({ length: T }, (_, t) => [0, 1, 2, 3, 4, 5, 6].map(i => val(`mt-${t}-${i}`, mi[i])));
+    $('tab-dias').classList.toggle('com-turnos', T > 0);
+    $('dias').innerHTML = M.DIAS.map((d, i) => `
     <tr id="linha-${i}">
-      <td>${DIA_NOME[i]}</td>
-      <td><input type="checkbox" id="ab-${i}" checked aria-label="${DIA_NOME[i]}: abre"></td>
-      <td><input type="number" id="mi-${i}" min="0" value="2" aria-label="${DIA_NOME[i]}: mínimo de pessoas"></td>
-      <td><input type="checkbox" id="fo-${i}" checked aria-label="${DIA_NOME[i]}: pode folgar"></td>
+      <td><span class="longo">${DIA_NOME[i]}</span><span class="curto">${d}</span></td>
+      <td><input type="checkbox" id="ab-${i}" ${ab[i] ? 'checked' : ''} aria-label="${DIA_NOME[i]}: abre"></td>
+      <td${T ? ' hidden' : ''}><input type="number" id="mi-${i}" min="0" value="${esc(mi[i])}" aria-label="${DIA_NOME[i]}: mínimo de pessoas"></td>
+      ${mt.map((m, t) => `<td><input type="number" id="mt-${t}-${i}" min="0" value="${esc(m[i])}" aria-label="${DIA_NOME[i]}: mínimo do turno ${esc(nomeTurno(t))}"></td>`).join('')}
+      <td><input type="checkbox" id="fo-${i}" ${fo[i] ? 'checked' : ''} aria-label="${DIA_NOME[i]}: pode folgar"></td>
     </tr>`).join('');
+    renderDiasCab();
+    atualizaFechados();
+  }
+  function renderDiasCab() {
+    $('dias-cab').innerHTML = comTurnos()
+      ? '<tr><th rowspan="2">Dia</th><th rowspan="2">Abre</th>' +
+        `<th colspan="${estado.turnos.length}">Mínimo por turno</th><th rowspan="2">Pode<br>folgar</th></tr>` +
+        `<tr>${estado.turnos.map((_, t) => `<th class="turno-col" title="${esc(nomeTurno(t))}">${esc(nomeTurno(t))}</th>`).join('')}</tr>`
+      : '<tr><th>Dia</th><th>Abre</th><th>Mínimo de pessoas</th><th>Pode folgar</th></tr>';
+  }
   function aplicarSugestao() {
+    const domAberto = $('ab-6').checked && [0, 1, 2, 3, 4, 5].every(i => $(`ab-${i}`).checked);
+    if (comTurnos()) {
+      // cada turno começa com a própria operação de hoje
+      estado.turnos.forEach((_, t) => operacaoDeHoje(doTurnoIdx(t).length).forEach((v, i) => { $(`mt-${t}-${i}`).value = v; }));
+      $('dica-minimo').innerHTML = 'Cada turno começa com a sua <b>operação de hoje no 6x1</b>: todo mundo do turno trabalhando' +
+        (domAberto ? ', menos quem folga no domingo' : '') + '. Ajuste dia a dia se for diferente: é com esses números que o app diz quantas pessoas faltam em cada turno.';
+      return;
+    }
     const n = estado.pessoas.length, sug = operacaoDeHoje(n);
     sug.forEach((v, i) => { $(`mi-${i}`).value = v; });
-    const domAberto = $('ab-6').checked && [0, 1, 2, 3, 4, 5].every(i => $(`ab-${i}`).checked);
     $('dica-minimo').innerHTML = `Começa com a sua <b>operação de hoje no 6x1</b>: ${plural(sug[0], 'pessoa', 'pessoas')} trabalhando por dia` +
       (domAberto ? ` e ${sug[6]} no domingo` : '') + '. Ajuste dia a dia se for diferente, ou se hoje você já não usa 6x1: ' +
       'é com esses números que o app diz quantas pessoas faltam.';
@@ -830,7 +1029,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('usar-sugestao').addEventListener('click', () => { estado.minimoManual = false; aplicarSugestao(); });
   }
   $('dias').addEventListener('input', ev => {
-    if (!ev.target.id.startsWith('mi-')) return;
+    if (!ev.target.id.startsWith('mi-') && !ev.target.id.startsWith('mt-')) return;
     estado.minimoManual = true;
     mostrarMinimoManual();
   });
@@ -840,6 +1039,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       $(`linha-${i}`).classList.toggle('fechado', !aberto);
       $(`mi-${i}`).disabled = !aberto;
       $(`fo-${i}`).disabled = !aberto;
+      if (comTurnos()) estado.turnos.forEach((_, t) => { $(`mt-${t}-${i}`).disabled = !aberto; });
     }
   }
   $('dias').addEventListener('change', ev => {
@@ -865,8 +1065,14 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 
   function lerForm() {
     const inicio = $('inicio').value;
-    return {
-      nomes: estado.pessoas.map((p, i) => p.nome.trim() || `Funcionário ${i + 1}`),
+    // sem nome, com turnos a pessoa vira "Manhã 1, Manhã 2…" (como na planilha da RH)
+    const pos = estado.pessoas.map((p, i) => (comTurnos() ? estado.pessoas.slice(0, i).filter(q => q.turno === p.turno).length : i));
+    const turnos = comTurnos() ? {
+      turnos: estado.turnos.map((_, t) => ({ nome: nomeTurno(t), minimo: [0, 1, 2, 3, 4, 5, 6].map(i => +$(`mt-${t}-${i}`).value || 0) })),
+      turnoDe: estado.pessoas.map(p => p.turno),
+    } : {};
+    return Object.assign({
+      nomes: estado.pessoas.map((p, i) => p.nome.trim() || (comTurnos() ? `${nomeTurno(p.turno)} ${pos[i] + 1}` : `Funcionário ${i + 1}`)),
       sexos: estado.pessoas.map(p => p.sexo || '?'),
       art386: art386() === true,
       domingoCada: +$('ramo').value,
@@ -876,7 +1082,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       maxSeguidos: estado.maxSeguidos,
       inicio,
       fim: inicio ? fimDe(inicio) : '',
-    };
+    }, turnos);
   }
 
   function listaMeses(ini, fim) {
@@ -919,27 +1125,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('montar').disabled = true;
     $('montar').textContent = estado.jaMontou ? 'Atualizando…' : 'Calculando…';
     setTimeout(() => {                      // deixa o botão atualizar antes do cálculo
-      const res0 = M.montar(cfg, estado.semente);
-      const eq = { hoje: cfg.nomes.length, faltaH: null, faltaM: null, contratadas: 0, sobra: null, motivo: null, semSaida: false,
-        minimoIntocado: !estado.minimoManual };
-      let res = res0;
-      if (!res0.ok) {
-        // quantas contratações a regra pede; com o art. 386, o sexo das contratações muda a conta
-        eq.faltaH = M.faltam(cfg, 'M');
-        eq.faltaM = cfg.art386 ? M.faltam(cfg, 'F') : eq.faltaH;
-        const k = cfg.art386 ? eq.faltaM : eq.faltaH;    // monta valendo para qualquer contratação
-        if (k === null) eq.semSaida = true;
-        else {
-          const nomes = cfg.nomes.concat(Array.from({ length: k }, (_, i) => `Contratação ${i + 1}`));
-          const sexos = cfg.sexos.concat(Array(k).fill('?'));
-          res = M.montar(Object.assign({}, cfg, { nomes, sexos }), k ? estado.semente : 0);
-          eq.contratadas = k;
-          eq.motivo = res0.erros[0];
-        }
-      } else if (!cfg.art386) {
-        const menor = M.menorEquipe(cfg);
-        if (menor !== null) eq.sobra = Math.max(0, cfg.nomes.length - menor);
-      }
+      const { eq, res } = comTurnos() ? calcularTurnos(cfg) : calcularEquipe(cfg, 1);
       estado.equipe = eq;
       estado.res = res;
       if (res.ok) {
@@ -972,6 +1158,56 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         $('status').scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
       }
     }, 20);
+  }
+  // a conta de uma equipe: monta; se não fecha, quantas contratações a regra pede e a escala já com elas.
+  // `primeira` numera as contratações (com turnos, a numeração segue de um turno para o outro)
+  function calcularEquipe(cfg, primeira) {
+    const res0 = M.montar(cfg, estado.semente);
+    const eq = { hoje: cfg.nomes.length, faltaH: null, faltaM: null, contratadas: 0, sobra: null, motivo: null, semSaida: false,
+      minimoIntocado: !estado.minimoManual };
+    let res = res0;
+    if (!res0.ok) {
+      // com o art. 386, o sexo das contratações muda a conta
+      eq.faltaH = M.faltam(cfg, 'M');
+      eq.faltaM = cfg.art386 ? M.faltam(cfg, 'F') : eq.faltaH;
+      const k = cfg.art386 ? eq.faltaM : eq.faltaH;    // monta valendo para qualquer contratação
+      if (k === null) eq.semSaida = true;
+      else {
+        const nomes = cfg.nomes.concat(Array.from({ length: k }, (_, i) => `Contratação ${primeira + i}`));
+        const sexos = cfg.sexos.concat(Array(k).fill('?'));
+        res = M.montar(Object.assign({}, cfg, { nomes, sexos }), k ? estado.semente : 0);
+        eq.contratadas = k;
+        eq.motivo = res0.erros[0];
+      }
+    } else if (!cfg.art386) {
+      const menor = M.menorEquipe(cfg);
+      if (menor !== null) eq.sobra = Math.max(0, cfg.nomes.length - menor);
+    }
+    return { eq, res };
+  }
+  // com turnos: a mesma conta em cada turno, e a escala da empresa é a junção (as contratações entram no fim do turno delas)
+  function calcularTurnos(cfg) {
+    let proxima = 1;
+    const partes = cfg.turnos.map((_, t) => {
+      const p = calcularEquipe(M.doTurno(cfg, t), proxima);
+      proxima += p.eq.contratadas;
+      return p;
+    });
+    const nomes = [], sexos = [], turnoDe = [];
+    partes.forEach((p, t) => p.res.cfg.nomes.forEach((n, j) => { nomes.push(n); sexos.push(p.res.cfg.sexos[j]); turnoDe.push(t); }));
+    const res = M.juntarTurnos(Object.assign({}, cfg, { nomes, sexos, turnoDe }), partes.map(p => p.res));
+    // turno que dá conta entra com 0; o "de x a y" do art. 386 soma os dois jeitos de contratar
+    const soma = campo => partes.reduce((s, p) => s + (p.eq.contratadas ? p.eq[campo] || 0 : 0), 0);
+    const comFalta = partes.findIndex(p => p.eq.motivo);
+    const eq = {
+      hoje: cfg.nomes.length, contratadas: partes.reduce((s, p) => s + p.eq.contratadas, 0),
+      faltaH: partes.some(p => p.eq.contratadas) ? soma('faltaH') : null, faltaM: partes.some(p => p.eq.contratadas) ? soma('faltaM') : null,
+      sobra: partes.some(p => p.eq.sobra) ? partes.reduce((s, p) => s + (p.eq.sobra || 0), 0) : null,
+      motivo: comFalta >= 0 ? Object.assign({}, partes[comFalta].eq.motivo, { turno: cfg.turnos[comFalta].nome }) : null,
+      semSaida: partes.some(p => p.eq.semSaida), minimoIntocado: !estado.minimoManual,
+      porTurno: partes.map((p, t) => Object.assign({ nome: cfg.turnos[t].nome }, p.eq)),
+    };
+    return { eq, res };
   }
   // montar de novo joga fora as trocas feitas à mão: avisa antes
   function podeDescartarTrocas(acao) {
@@ -1050,7 +1286,15 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   }
 
   // "Essa escala se repete a cada 3 semanas: a partir de 04/01 tudo volta igual."
+  // com turnos, cada turno tem o próprio rodízio (só quando dentro de cada turno o ciclo é um só)
+  function ciclosDosTurnos(res) {
+    const pt = res.cfg.turnos && res.porTurno;
+    if (!pt || res.repete === res.repeteMin || !pt.every(x => x.repete === x.repeteMin)) return null;
+    return res.cfg.turnos.map((x, t) => `${x.nome} a cada ${plural(pt[t].repete, 'semana', 'semanas')}`);
+  }
   function fraseCiclo(res) {
+    const ct = ciclosDosTurnos(res);
+    if (ct) return `Cada turno tem o próprio rodízio: ${ct.join(', ')}.`;
     if (res.repete !== res.repeteMin) return `Cada pessoa repete o próprio ciclo, de ${res.repeteMin} a ${res.repete} semanas.`;
     if (res.repete === 1) return 'Toda semana é igual: cada pessoa folga sempre nos mesmos dias.';
     return `Essa escala se repete a cada ${res.repete} semanas: a partir de ${M.ddmm(res.seg0 + 7 * res.repete)} tudo volta igual.`;
@@ -1092,9 +1336,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     document.querySelectorAll('.alterna button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.visao === estado.visao)));
   }
 
-  function mediaPorDia() {
+  function mediaPorDia(cob) {
     const soma = Array(7).fill(0), qtd = Array(7).fill(0);
-    estado.val.cobertura.forEach((n, k) => { if (n !== null) { soma[k % 7] += n; qtd[k % 7]++; } });
+    (cob || estado.val.cobertura).forEach((n, k) => { if (n !== null) { soma[k % 7] += n; qtd[k % 7]++; } });
     return M.DIAS.map((d, i) => qtd[i]
       ? `<span class="chip">${d} <b>${(soma[i] / qtd[i]).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</b></span>`
       : `<span class="chip">${d} <b>fechado</b></span>`).join('');
@@ -1119,7 +1363,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         ? `${falta(eq.faltaH)} se contratar homens; ${eq.faltaM} se contratar mulheres. ` +
           `A escala abaixo já inclui ${plural(eq.contratadas, 'contratação', 'contratações')}, montadas para valer qualquer que seja o sexo.`
         : `A escala abaixo já inclui ${plural(eq.contratadas, 'contratação', 'contratações')} ("Contratação 1"…).`;
-      if (eq.motivo) nota += ` Por que falta gente: ${eq.motivo.texto}`;
+      if (eq.motivo) nota += ` Por que falta gente${eq.motivo.turno ? ` no turno ${eq.motivo.turno}` : ''}: ${eq.motivo.texto}`;
     } else if (eq.sobra) {
       nota = `Dá para fazer com ${plural(pede, 'pessoa', 'pessoas')}. A sobra ajuda a cobrir férias e atestados.`;
     }
@@ -1131,8 +1375,16 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         'A conta parte do que você tem hoje no 6x1. Se a operação for diferente, ajuste os mínimos (item 2) e clique em Atualizar escala.</p></div>'
       : '';
     // as notas saem à parte: o renderStatus põe depois da chamada, senão o botão cai para fora da 1ª tela do celular
+    // com turnos, o total vem em cima e cada turno numa linha: é por turno que o líder contrata
+    const turnos = eq.porTurno ? `<table class="por-turno"><thead><tr><th>Turno</th><th>Hoje</th><th>A regra pede</th><th>Resultado</th></tr></thead><tbody>` +
+      eq.porTurno.map(x => {
+        const r = x.semSaida ? '<b class="ruim">não fecha</b>'
+          : x.contratadas ? `<b class="falta-txt">${x.contratadas === 1 ? 'Falta 1' : `Faltam ${x.contratadas}`}</b>`
+          : x.sobra ? `<b class="ok-txt">Sobra ${x.sobra}</b>` : '<b class="ok-txt">Dá conta</b>';
+        return `<tr><td>${esc(x.nome)}</td><td>${x.hoje}</td><td>${x.hoje + x.contratadas - (x.sobra || 0)}</td><td>${r}</td></tr>`;
+      }).join('') + '</tbody></table>' : '';
     return {
-      placar: `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>A regra pede</span><b>${pedeTxt}</b></div>${terceiro}</div>` + intocado,
+      placar: `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>A regra pede</span><b>${pedeTxt}</b></div>${terceiro}</div>` + turnos + intocado,
       notas: (nota ? `<p class="nota">${esc(nota)}</p>` : '') +
         (eq.contratadas ? '<p class="nota">A conta não inclui férias e atestados: no mês em que alguém se afasta, a escala precisa de outro arranjo ou de um temporário.</p>' : ''),
     };
@@ -1164,7 +1416,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const checks = [
       [!tipos.has('semana'), '2 folgas em todas as semanas'],
       [!tipos.has('seguidos'), `No máximo ${maior} dias seguidos de trabalho` + (cfg.maxSeguidos === 6 ? ' (a lei permite até 6)' : '')],
-      [!tipos.has('cobertura'), 'Mínimo de pessoas respeitado em todos os dias'],
+      [!tipos.has('cobertura'), cfg.turnos ? 'Mínimo de pessoas de cada turno respeitado em todos os dias' : 'Mínimo de pessoas respeitado em todos os dias'],
     ];
     if (cfg.aberto[6]) {
       const Ss = new Set(val.porPessoa.map(p => p.regraDomingo));
@@ -1176,7 +1428,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     if (n || na) el.classList.add('atencao');
     const contr = eq && eq.contratadas ? ` (${eq.hoje} de hoje + ${plural(eq.contratadas, 'contratação', 'contratações')})` : '';
     const titulo = n ? `A escala tem ${plural(n, 'problema', 'problemas')}` : `Escala pronta para ${plural(N, 'pessoa', 'pessoas')}${contr}`;
-    const repete = res.repete !== res.repeteMin ? 'Cada pessoa repete o próprio ciclo'
+    const repete = ciclosDosTurnos(res) ? 'Cada turno tem o próprio rodízio' : res.repete !== res.repeteMin ? 'Cada pessoa repete o próprio ciclo'
       : res.repete === 1 ? 'Toda semana é igual' : `Se repete a cada ${plural(res.repete, 'semana', 'semanas')}`;
     const sub = n
       ? 'Você trocou folgas no calendário. As células marcadas mostram onde ajustar.'
@@ -1189,7 +1441,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const pl = placar();
     el.innerHTML = `<h2>${titulo}</h2>` + pl.placar + `<p>${sub}</p>` + chamada + pl.notas + `<ul class="checks">${checks.map(([ok, t]) =>
       `<li class="${ok ? '' : 'nao'}">${esc(t)}</li>`).join('')}</ul>` +
-      `<div class="cobertura"><span class="rot">Gente trabalhando por dia:</span>${mediaPorDia()}</div>` +
+      (cfg.turnos
+        ? cfg.turnos.map((x, t) => `<div class="cobertura"><span class="rot">${esc(x.nome)}, trabalhando por dia:</span>${mediaPorDia(estado.val.coberturaTurno[t])}</div>`).join('')
+        : `<div class="cobertura"><span class="rot">Gente trabalhando por dia:</span>${mediaPorDia()}</div>`) +
       (n ? `<ul class="problemas">${val.problemas.slice(0, 30).map(p => `<li>${esc(p.texto)}</li>`).join('')}${n > 30 ? `<li>e mais ${n - 30}…</li>` : ''}</ul>` : '') +
       (na ? `<div class="avisos"><b>${na === 1 ? 'Confira' : `Confira (${na})`}</b><ul>${val.avisos.slice(0, 15).map(a => `<li>${esc(a.texto)}</li>`).join('')}` +
         `${na > 15 ? `<li>e mais ${na - 15}…</li>` : ''}</ul></div>` : '');
@@ -1203,22 +1457,27 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 
   function renderFixa() {
     const res = estado.res, cfg = res.cfg, P = res.repete, uniforme = res.repete === res.repeteMin;
-    $('fixa-titulo').textContent = uniforme
+    const ct = ciclosDosTurnos(res);
+    $('fixa-titulo').textContent = ct ? 'Escala fixa · cada turno tem o próprio rodízio' : uniforme
       ? `Escala fixa · se repete a cada ${plural(P, 'semana', 'semanas')}`
       : `Escala fixa · cada pessoa repete o próprio ciclo (${res.repeteMin} a ${P} semanas)`;
-    $('fixa-sub').textContent = `Dias de folga de cada pessoa. A semana 1 começa na segunda ${M.ddmm(res.seg0)}; ` +
+    $('fixa-sub').textContent = (ct ? `Se repete: ${ct.join(' · ')}. ` : '') + `Dias de folga de cada pessoa. A semana 1 começa na segunda ${M.ddmm(res.seg0)}; ` +
       'quando a linha da pessoa acaba, ela volta para a semana 1. Vale até alguém entrar ou sair da equipe.';
     let html = '<thead><tr><th class="nome">Pessoa</th>' +
       Array.from({ length: P }, (_, s) => `<th>Semana ${s + 1}<small>${M.ddmm(res.seg0 + 7 * s)}</small></th>`).join('') +
       '<th>&nbsp;</th></tr></thead><tbody>';
-    res.rodizio.forEach((r, e) => {
-      html += `<tr><th class="nome">${esc(cfg.nomes[e])}</th>`;
-      for (let s = 0; s <= P; s++) {
-        if (s < r.periodo) html += `<td><span>${r.semanas[s].map(d => M.DIAS[d]).join(' + ')}</span></td>`;
-        else if (s === r.periodo) html += '<td class="repete">↺ volta à semana 1</td>';
-        else html += '<td></td>';
-      }
-      html += '</tr>';
+    gruposDaEscala(cfg).forEach(g => {
+      if (cfg.turnos) html += `<tr class="turno-cab"><th class="nome">${esc(g.nome)}</th><td colspan="${P + 1}"></td></tr>`;
+      g.membros.forEach(e => {
+        const r = res.rodizio[e];
+        html += `<tr><th class="nome">${esc(cfg.nomes[e])}</th>`;
+        for (let s = 0; s <= P; s++) {
+          if (s < r.periodo) html += `<td><span>${r.semanas[s].map(d => M.DIAS[d]).join(' + ')}</span></td>`;
+          else if (s === r.periodo) html += '<td class="repete">↺ volta à semana 1</td>';
+          else html += '<td></td>';
+        }
+        html += '</tr>';
+      });
     });
     $('fixa').innerHTML = html + '</tbody>';
   }
@@ -1231,18 +1490,27 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const txt = estado.visao === 'dia' ? PALAVRA[v] : v === 'T' ? '·' : v;
     return `<td class="c ${extra}"><span class="${cls}" data-e="${e}" data-k="${k}" title="${esc(estado.res.cfg.nomes[e])}: ${PALAVRA[v]}">${txt}</span></td>`;
   }
-  function cobertura(k, d) {
-    const n = estado.val.cobertura[k];
+  // as pessoas na ordem de mostrar: um grupo só, ou um por turno (t = índice do turno; -1 sem turnos)
+  function gruposDaEscala(cfg) {
+    if (!cfg.turnos) return [{ t: -1, nome: '', membros: cfg.nomes.map((_, e) => e) }];
+    return M.membrosDosTurnos(cfg).map((membros, t) => ({ t, nome: cfg.turnos[t].nome, membros }));
+  }
+  // gente trabalhando no dia k: da equipe toda, ou só do turno t (conferida contra o mínimo do turno)
+  function cobertura(k, d, t) {
+    const cfg = estado.res.cfg, porTurno = t >= 0 && cfg.turnos;
+    const n = porTurno ? estado.val.coberturaTurno[t][k] : estado.val.cobertura[k];
     if (n === null) return '<span class="cob">—</span>';
-    const cfg = estado.res.cfg, N = cfg.nomes.length;
-    const cls = estado.val.faltaGente[k] ? 'falta' : n === 1 && N > 1 ? 'um' : n === N ? 'cheio' : '';
-    return `<span class="cob ${cls}" title="mínimo ${cfg.minimo[d]}">${n}</span>`;
+    const N = porTurno ? cfg.turnoDe.filter(x => x === t).length : cfg.nomes.length;
+    const falta = porTurno ? estado.val.faltaTurno[t][k] : estado.val.faltaGente[k];
+    const minimo = porTurno ? cfg.turnos[t].minimo[d] : cfg.minimo[d];
+    const cls = falta ? 'falta' : n === 1 && N > 1 ? 'um' : n === N ? 'cheio' : '';
+    return `<span class="cob ${cls}" title="mínimo ${minimo}">${n}</span>`;
   }
 
   // Tabela de um mês, usada pelo calendário pago e pela prévia. Na prévia, `borrado(dia)` esconde
   // o que não é grátis e `maxLinhas` encurta a versão "uma linha por dia".
   function htmlMes(mes, opc) {
-    const res = estado.res, cfg = res.cfg, N = cfg.nomes.length;
+    const res = estado.res, cfg = res.cfg;
     const borrado = opc.borrado || (() => false), edit = opc.editavel ? ' editavel' : '';
     const fer = {};
     res.feriados.forEach(f => { fer[f.dia] = f.nome; });
@@ -1252,16 +1520,25 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       dias.push({ dia, k: dia - res.seg0, b: borrado(dia) });
     }
     let html = '';
+    const grupos = gruposDaEscala(cfg), comT = !!cfg.turnos;
     if (estado.visao === 'dia') {
-      html += `<table class="escala dia${edit}"><thead><tr><th class="fixa1">Data</th><th class="fixa2">Dia</th>` +
-        cfg.nomes.map(n => `<th>${esc(n)}</th>`).join('') + '<th>Trabalhando</th></tr></thead><tbody>';
+      // com turnos, cada turno é um bloco de colunas com o próprio "Trabalhando" (como na planilha da RH)
+      html += `<table class="escala dia${edit}${comT ? ' turnos' : ''}"><thead>` +
+        (comT ? '<tr class="turno-cab"><th class="fixa1"></th><th class="fixa2"></th>' +
+          grupos.map(g => `<th class="turno-ini" colspan="${g.membros.length + 1}">${esc(g.nome)}</th>`).join('') + '</tr>' : '') +
+        '<tr><th class="fixa1">Data</th><th class="fixa2">Dia</th>' +
+        grupos.map(g => g.membros.map((e, j) => `<th${comT && !j ? ' class="turno-ini"' : ''}>${esc(cfg.nomes[e])}</th>`).join('') + '<th>Trabalhando</th>').join('') +
+        '</tr></thead><tbody>';
       dias.forEach(({ dia, k, b }) => {
         const d = k % 7;
         const f = fer[dia] ? ` class="feriado" title="Feriado: ${esc(fer[dia])}"` : '';
         html += `<tr class="${d === 6 ? 'dom fimsem' : ''}${b ? ' bloq' : ''}"><th class="fixa1"><span${f}>${M.ddmm(dia)}</span></th><th class="fixa2">` +
           `<span class="longo">${DIA_NOME[d]}${fer[dia] ? ' · feriado' : ''}</span><span class="curto">${M.DIAS[d]}</span></th>`;
-        for (let e = 0; e < N; e++) html += celula(e, k, '');
-        html += `<td>${cobertura(k, d)}</td></tr>`;
+        grupos.forEach(g => {
+          g.membros.forEach((e, j) => { html += celula(e, k, comT && !j ? 'turno-ini' : ''); });
+          html += `<td>${cobertura(k, d, g.t)}</td>`;
+        });
+        html += '</tr>';
       });
       return html + '</tbody></table>';
     }
@@ -1273,10 +1550,15 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       dias.map(x => `<th class="${colCls(x)}${falta(x)}">${M.DIAS[x.k % 7]}</th>`).join('') + '</tr><tr><th class="fixa1"></th>' +
       dias.map(x => `<th class="${colCls(x)}${fer[x.dia] ? ' feriado' : ''}${falta(x)}" title="${fer[x.dia] ? `Feriado: ${esc(fer[x.dia])}` : ''}${falta(x) ? ' Gente de menos neste dia' : ''}">${M.ddmm(x.dia).slice(0, 2)}</th>`).join('') +
       '</tr></thead><tbody>';
-    for (let e = 0; e < N; e++) {
-      html += `<tr><th class="fixa1">${esc(cfg.nomes[e])}</th>` + dias.map(x => celula(e, x.k, colCls(x))).join('') + '</tr>';
-    }
-    html += '<tr><th class="fixa1">Trabalhando</th>' + dias.map(x => `<td class="${colCls(x)}">${cobertura(x.k, x.k % 7)}</td>`).join('') + '</tr>';
+    grupos.forEach(g => {
+      // com turnos: o nome do turno abre o bloco e o "Trabalhando" de cada turno fecha
+      if (comT) html += `<tr class="turno-cab"><th class="fixa1">${esc(g.nome)}<small>${plural(g.membros.length, 'pessoa', 'pessoas')}</small></th>` +
+        dias.map(x => `<td class="${colCls(x)}"></td>`).join('') + '</tr>';
+      g.membros.forEach(e => {
+        html += `<tr><th class="fixa1">${esc(cfg.nomes[e])}</th>` + dias.map(x => celula(e, x.k, colCls(x))).join('') + '</tr>';
+      });
+      html += `<tr class="trabalhando"><th class="fixa1">Trabalhando</th>` + dias.map(x => `<td class="${colCls(x)}">${cobertura(x.k, x.k % 7, g.t)}</td>`).join('') + '</tr>';
+    });
     return html + '</tbody></table>';
   }
 
@@ -1294,13 +1576,17 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       : `Nenhum feriado nacional em ${mes.rotulo}.`;
     // quem sai na imagem do WhatsApp: a equipe toda ou uma pessoa (mantém a escolha ao trocar de mês)
     const quem = $('img-quem'), atual = quem.value || 'todos';
-    quem.innerHTML = '<option value="todos">Equipe toda</option>' + cfg.nomes.map((n, e) => `<option value="${e}">${esc(n)}</option>`).join('');
+    // com turnos, cada turno costuma ter o próprio grupo de WhatsApp: a imagem de um turno só vem logo depois da equipe toda
+    quem.innerHTML = '<option value="todos">Equipe toda</option>' + (cfg.turnos
+      ? '<optgroup label="Um turno">' + cfg.turnos.map((x, t) => `<option value="t${t}">Turno ${esc(x.nome)}</option>`).join('') + '</optgroup>' +
+        gruposDaEscala(cfg).map(g => `<optgroup label="${esc(g.nome)}">` + g.membros.map(e => `<option value="${e}">${esc(cfg.nomes[e])}</option>`).join('') + '</optgroup>').join('')
+      : cfg.nomes.map((n, e) => `<option value="${e}">${esc(n)}</option>`).join(''));
     quem.value = [...quem.options].some(o => o.value === atual) ? atual : 'todos';
     $('resumo').innerHTML = '<thead><tr><th>Pessoa</th><th>Folgas</th><th>Domingos trabalhados</th><th>Maior sequência</th></tr></thead><tbody>' +
-      cfg.nomes.map((n, e) => {
+      gruposDaEscala(cfg).map(g => (cfg.turnos ? `<tr class="turno-cab"><td colspan="4">${esc(g.nome)}</td></tr>` : '') + g.membros.map(e => {
         const p = estado.val.porPessoa[e];
-        return `<tr><td>${esc(n)}</td><td>${p.folgas}</td><td>${cfg.aberto[6] ? p.domTrab : '—'}</td><td>${p.maior} dias</td></tr>`;
-      }).join('') + '</tbody>';
+        return `<tr><td>${esc(cfg.nomes[e])}</td><td>${p.folgas}</td><td>${cfg.aberto[6] ? p.domTrab : '—'}</td><td>${p.maior} dias</td></tr>`;
+      }).join('')).join('') + '</tbody>';
   }
 
   // ---------- interações do resultado ----------
@@ -1419,6 +1705,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         podeFolgar: [0, 1, 2, 3, 4, 5, 6].map(i => $(`fo-${i}`).checked),
         inicio: $('inicio').value, maxSeguidos: estado.maxSeguidos,
         minimoManual: !!estado.minimoManual,      // na volta: mínimo editado fica; sugestão volta a acompanhar a equipe
+        turnos: comTurnos() ? estado.turnos.map((x, t) => ({ nome: x.nome, minimo: [0, 1, 2, 3, 4, 5, 6].map(i => $(`mt-${t}-${i}`).value) })) : null,
       },
       semente: estado.semente, res: estado.res, grade: estado.grade, equipe: estado.equipe, mes: estado.mes, visao: estado.visao,
     };
@@ -1431,6 +1718,11 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     for (let i = 0; i < 7; i++) {
       $(`ab-${i}`).checked = f.aberto[i]; $(`mi-${i}`).value = f.minimo[i]; $(`fo-${i}`).checked = f.podeFolgar[i];
     }
+    // turnos: a tabela de dias ganha as colunas antes de receber os mínimos de cada turno
+    estado.turnos = f.turnos ? f.turnos.map(x => ({ nome: x.nome })) : null;
+    document.querySelectorAll('input[name="turnos"]').forEach(r => { r.checked = r.value === (f.turnos ? 'sim' : 'nao'); });
+    renderDias();
+    if (f.turnos) f.turnos.forEach((x, t) => x.minimo.forEach((v, i) => { $(`mt-${t}-${i}`).value = v; }));
     $('inicio').value = f.inicio;
     estado.maxSeguidos = f.maxSeguidos || 5;
     estado.semente = s.semente || 0;
@@ -1872,18 +2164,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   }
 
   // a grade do mês: uma linha por pessoa, só a folga aparece
-  function imagemEquipe(res, cfg, mes, fer, ferMes) {
-    const N = cfg.nomes.length, dias = [];
+  // `linhas`: [{ e }] pessoas, ou [{ turno }] para a faixa com o nome do turno; `sub` vai no título
+  function imagemEquipe(res, cfg, mes, fer, ferMes, linhas, sub) {
+    const N = linhas.length, dias = [];
     for (let dia = mes.a; dia <= mes.b; dia++) dias.push(dia);
     const pad = 28, cw = 30, ch = 28, topo = 84, cab = 44, rod = 48;
     const medida = document.createElement('canvas').getContext('2d');
     medida.font = `600 14px ${FT}`;
-    const nw = Math.min(220, Math.max(110, ...cfg.nomes.map(n => medida.measureText(n).width + 18)));
+    const nw = Math.min(220, Math.max(110, ...linhas.map(l => medida.measureText(l.turno || cfg.nomes[l.e]).width + 18)));
     const W = pad * 2 + nw + dias.length * cw, H = topo + cab + N * ch + rod;
     const { cv, g } = telaImagem(W, H);
     const x0 = pad + nw, y0 = topo, yFim = y0 + cab + N * ch;
     g.textAlign = 'left'; g.fillStyle = COR_IMG.tinta; g.font = `800 24px ${FT}`;
-    g.fillText(`Escala de folgas · ${mes.rotulo}`, pad, 40);
+    g.fillText(`Escala de folgas · ${mes.rotulo}${sub ? ` · ${sub}` : ''}`, pad, 40);
     g.font = `600 13px ${FT}`; g.fillStyle = COR_IMG.tinta2;
     g.fillText('F = folga · X = fechado · em branco = trabalha', pad, 62);
     dias.forEach((dia, i) => {               // coluna inteira de domingo e de feriado pintada
@@ -1900,8 +2193,14 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     });
     g.strokeStyle = COR_IMG.linhaForte; g.lineWidth = 1;
     g.beginPath(); g.moveTo(pad, y0 + cab + 0.5); g.lineTo(W - pad, y0 + cab + 0.5); g.stroke();
-    for (let e = 0; e < N; e++) {
-      const y = y0 + cab + e * ch;
+    for (let l = 0; l < N; l++) {
+      const y = y0 + cab + l * ch, e = linhas[l].e;
+      if (linhas[l].turno) {
+        g.fillStyle = COR_IMG.fechado; g.fillRect(pad, y + 1, W - 2 * pad, ch - 1);
+        g.textAlign = 'left'; g.font = `800 13px ${FT}`; g.fillStyle = COR_IMG.tinta;
+        g.fillText(cortar(g, linhas[l].turno.toUpperCase(), W - 2 * pad - 16), pad + 8, y + ch / 2 + 5);
+        continue;
+      }
       g.textAlign = 'left'; g.font = `600 14px ${FT}`; g.fillStyle = COR_IMG.tinta;
       g.fillText(cortar(g, cfg.nomes[e], nw - 14), pad, y + ch / 2 + 5);
       dias.forEach((dia, i) => {
@@ -1991,16 +2290,20 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const fer = {};
       res.feriados.forEach(f => { fer[f.dia] = f.nome; });
       const ferMes = res.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
-      const todos = quem === 'todos';
-      const cv = todos ? imagemEquipe(res, cfg, mes, fer, ferMes) : imagemPessoa(res, cfg, mes, fer, ferMes, +quem);
+      const todos = quem === 'todos', turno = quem[0] === 't' && quem !== 'todos' ? +quem.slice(1) : -1;
+      const grupos = gruposDaEscala(cfg).filter(gr => turno < 0 || gr.t === turno);
+      const linhas = grupos.flatMap(gr => (cfg.turnos && todos ? [{ turno: gr.nome }] : []).concat(gr.membros.map(e => ({ e }))));
+      const cv = todos || turno >= 0 ? imagemEquipe(res, cfg, mes, fer, ferMes, linhas, turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : '')
+        : imagemPessoa(res, cfg, mes, fer, ferMes, +quem);
       const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
       if (imgAtual.url) URL.revokeObjectURL(imgAtual.url);
       imgAtual.blob = blob;
-      imgAtual.nome = `escala-${nomeArquivo(todos ? 'equipe' : cfg.nomes[+quem])}-${nomeArquivo(mes.rotulo)}.png`;
+      const quemNome = todos ? 'equipe' : turno >= 0 ? `turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem];
+      imgAtual.nome = `escala-${nomeArquivo(quemNome)}-${nomeArquivo(mes.rotulo)}.png`;
       imgAtual.arq = new File([blob], imgAtual.nome, { type: 'image/png' });
       imgAtual.url = URL.createObjectURL(blob);
       imgAtual.mes = mes.rotulo;
-      $('img-titulo').textContent = `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${cfg.nomes[+quem]}`);
+      $('img-titulo').textContent = `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem]}`);
       $('img-previa').src = imgAtual.url;
       $('img-previa').closest('.img-quadro').classList.remove('zoom');
       $('img-sub').textContent = 'Confira antes de mandar para a equipe. Toque na imagem para ampliar.';
@@ -2053,16 +2356,24 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   $('copiar').addEventListener('click', () => {
     const res = estado.res, cfg = res.cfg, mes = estado.meses[estado.mes];
     const linhas = [`*Escala fixa* (a semana 1 começa em ${M.ddmm(res.seg0)}; ao fim da sua linha, volte para a semana 1)`];
-    res.rodizio.forEach((r, e) => {
-      linhas.push(`*${cfg.nomes[e]}*: ` + r.semanas.map((dias, s) => `S${s + 1} ${dias.map(d => M.DIAS[d]).join('+')}`).join(' · '));
+    const grupos = gruposDaEscala(cfg), turno = g => (cfg.turnos ? [`_${g.nome}_`] : []);
+    grupos.forEach(g => {
+      linhas.push(...turno(g));
+      g.membros.forEach(e => {
+        const r = res.rodizio[e];
+        linhas.push(`*${cfg.nomes[e]}*: ` + r.semanas.map((dias, s) => `S${s + 1} ${dias.map(d => M.DIAS[d]).join('+')}`).join(' · '));
+      });
     });
     linhas.push('', `*Folgas em ${mes.rotulo}*`);
-    cfg.nomes.forEach((n, e) => {
-      const folgas = [];
-      for (let dia = mes.a; dia <= mes.b; dia++) {
-        if (estado.grade[e][dia - res.seg0] === 'F') folgas.push(`${M.DIAS[M.diaSemana(dia)]} ${M.ddmm(dia).slice(0, 2)}`);
-      }
-      linhas.push(`*${n}*: ${folgas.join(', ')}`);
+    grupos.forEach(g => {
+      linhas.push(...turno(g));
+      g.membros.forEach(e => {
+        const folgas = [];
+        for (let dia = mes.a; dia <= mes.b; dia++) {
+          if (estado.grade[e][dia - res.seg0] === 'F') folgas.push(`${M.DIAS[M.diaSemana(dia)]} ${M.ddmm(dia).slice(0, 2)}`);
+        }
+        linhas.push(`*${cfg.nomes[e]}*: ${folgas.join(', ')}`);
+      });
     });
     const texto = linhas.join('\n');
     const aviso = $('aviso-copia');
@@ -2075,8 +2386,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     });
   });
 
+  renderDias();
   renderPessoas();
-  atualizaFechados();
   iniciar();
 })();
 </script>

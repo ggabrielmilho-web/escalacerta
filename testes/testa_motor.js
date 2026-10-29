@@ -59,5 +59,52 @@ console.log('3) feriados');
 const santa = M.feriados(M.diaDe('2026-01-01'), M.diaDe('2028-12-31')).filter(f => /Santa/.test(f.nome)).map(f => M.isoDe(f.dia));
 confere(santa.join(' ') === '2026-04-03 2027-03-26 2028-04-14', 'Sexta-feira Santa 2026/2027/2028');
 
+// 4) Turnos fixos: cada turno montado à parte, conferido contra o próprio mínimo; a junção não pode
+//    misturar as pessoas de turno nem esconder a falta de gente de um turno atrás da sobra de outro
+console.log('4) turnos');
+const nomesT = ['M1', 'M2', 'M3', 'M4', 'M5', 'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'N1', 'N2', 'N3', 'N4'];
+const turnoDe = nomesT.map(n => ({ M: 0, I: 1, N: 2 }[n[0]]));
+const turnos = [{ nome: 'Manhã', minimo: [3, 3, 3, 3, 3, 4, 3] }, { nome: 'Intermediário', minimo: [5, 5, 5, 5, 5, 5, 4] },
+  { nome: 'Noite', minimo: [3, 3, 3, 3, 3, 3, 2] }];
+const emp = { ...base, maxSeguidos: 5, nomes: nomesT, sexos: [], turnos, turnoDe };
+const rt = M.montar(emp, 0);
+confere(rt.ok && rt.grade.length === 16 && rt.cfg.turnos.length === 3, 'três turnos: escala de 16 pessoas montada');
+if (rt.ok) {
+  const vt = M.validar(rt.cfg, rt.seg0, rt.grade);
+  confere(!vt.problemas.length && !vt.avisos.length, `três turnos: sem problema (${(vt.problemas[0] || {}).texto})`);
+  confere(vt.coberturaTurno.length === 3 && vt.cobertura.every((n, k) => n === null || n === vt.coberturaTurno.reduce((s, c) => s + c[k], 0)),
+    'cobertura da empresa = soma dos turnos');
+  // cada turno, sozinho, bate com o motor rodando só aquele turno
+  M.membrosDosTurnos(rt.cfg).forEach((m, t) => {
+    const so = M.montar(M.doTurno(rt.cfg, t), 0);
+    confere(so.ok && m.every((e, j) => so.grade[j].join() === rt.grade[e].join()), `turno ${t}: igual ao motor sozinho`);
+  });
+  // tirar a gente do intermediário num dia acusa o intermediário, mesmo com a noite sobrando
+  const g = rt.grade.map(l => l.slice());
+  const k = g[0].findIndex((v, i) => v !== null && i % 7 === 2);
+  M.membrosDosTurnos(rt.cfg)[1].forEach(e => { g[e][k] = 'F'; });
+  const vf = M.validar(rt.cfg, rt.seg0, g);
+  confere(vf.faltaTurno[1][k] && !vf.faltaTurno[2][k] && vf.faltaGente[k], 'falta no intermediário aparece no turno certo');
+  confere(vf.problemas.some(p => p.tipo === 'cobertura' && p.turno === 1 && p.texto.startsWith('Intermediário · ')),
+    'o problema de cobertura diz o turno');
+  confere(vf.problemas.filter(p => p.pessoa >= 0).every(p => rt.cfg.turnoDe[p.pessoa] === 1), 'problemas de pessoa voltam com o índice certo');
+}
+// pessoas fora de ordem (o formulário pode intercalar): a grade volta na ordem das pessoas
+const ordemMista = [2, 0, 1, 0, 2, 1, 1, 0, 1, 2, 1, 0, 1, 2, 0, 1];
+const rm = M.montar({ ...emp, turnoDe: ordemMista }, 0);
+confere(rm.ok && rm.cfg.turnoDe.join() === ordemMista.join(), 'turnos intercalados: monta e guarda o turno de cada um');
+const vazio = M.montar({ ...emp, turnoDe: nomesT.map(() => 0) }, 0);
+confere(!vazio.ok && vazio.turno === 1 && /Intermediário/.test(vazio.erros[0].titulo), 'turno sem ninguém: erro com o nome do turno');
+const naoFecha = M.montar({ ...emp, turnos: turnos.map((t, i) => (i === 2 ? { ...t, minimo: [4, 4, 4, 4, 4, 4, 4] } : t)) }, 0);
+confere(!naoFecha.ok && naoFecha.turno === 2 && /^Noite: /.test(naoFecha.erros[0].titulo), 'turno que não fecha: erro diz qual');
+const faltaNoite = M.faltam(M.doTurno(rt.cfg || emp, 2), 'M');
+confere(faltaNoite === 0, `noite com 4 e mínimo 3: dá conta (deu ${faltaNoite})`);
+confere(M.faltam(M.doTurno({ ...emp, turnos: turnos.map((t, i) => (i === 2 ? { ...t, minimo: [4, 4, 4, 4, 4, 4, 4] } : t)) }, 2), 'M') >= 2,
+  'noite com 4 e mínimo 4 todo dia: precisa contratar');
+// o exemplo do líder da Havan: 1 pessoa por turno, todos os dias → 2 por turno no 5x2
+const uma = { ...base, maxSeguidos: 5, nomes: ['Ana', 'Bia', 'Caio'], turnoDe: [0, 1, 2],
+  turnos: [{ nome: 'Manhã', minimo: [1, 1, 1, 1, 1, 1, 1] }, { nome: 'Intermediário', minimo: [1, 1, 1, 1, 1, 1, 1] }, { nome: 'Noite', minimo: [1, 1, 1, 1, 1, 1, 1] }] };
+confere([0, 1, 2].every(t => M.faltam(M.doTurno(uma, t), 'M') === 1), '1 por turno nos 7 dias: falta 1 em cada turno');
+
 console.log(falhas ? `\n${falhas} conferência(s) falharam.` : '\nTudo certo.');
 process.exit(falhas ? 1 : 0);

@@ -8,7 +8,7 @@
     tinta: 'FF1D2A26', cinza: 'FF8A9590', folga: 'FFCDEBD3', folgaTinta: 'FF1F6B35', fechado: 'FFE4E7E5',
     domingo: 'FFF3EBD9', cabeca: 'FF16443B', branco: 'FFFFFFFF', erro: 'FFF6C9C4', erroTinta: 'FF9C1C10',
     aviso: 'FFF8CBAD', avisoTinta: 'FF843C0C', linha: 'FFD5DBD8', semana: 'FF7F8C86', feriado: 'FFB3261E',
-    feriadoFundo: 'FFF9E1DE', trabalhaFraco: 'FFB5BFBA',
+    feriadoFundo: 'FFF9E1DE', trabalhaFraco: 'FFB5BFBA', turno: 'FFE3EFEB',
   };
   const DIA_NOME = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
   const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -31,8 +31,12 @@
     const { cfg, seg0, grade, feriados } = dados;
     const nomeFeriado = {};
     feriados.forEach(f => { nomeFeriado[f.dia] = f.nome; });
+    // a ordem de mostrar: um grupo só, ou um por turno, cada um com o próprio mínimo
+    const grupos = cfg.turnos
+      ? cfg.turnos.map((t, i) => ({ nome: t.nome, minimo: t.minimo, membros: cfg.turnoDe.map((x, e) => (x === i ? e : -1)).filter(e => e >= 0) }))
+      : [{ nome: '', minimo: cfg.minimo, membros: grade.map((_, e) => e) }];
     return {
-      cfg, seg0, grade, feriados, nomeFeriado,
+      cfg, seg0, grade, feriados, nomeFeriado, grupos, comTurnos: !!cfg.turnos,
       N: grade.length, total: grade[0].length, semanas: grade[0].length / 7,
       K: cfg.maxSeguidos, S: cfg.domingoCada,
       ini: M.diaDe(cfg.inicio), fim: M.diaDe(cfg.fim),
@@ -63,6 +67,30 @@
     }
   }
 
+  function faixaTurno(ws, r, c1, c2, nome, n) {
+    if (c2 > c1) ws.mergeCells(r, c1, r, c2);
+    const cel = ws.getCell(r, c1);
+    cel.value = n === undefined ? nome : `${nome} · ${n} pessoa${n === 1 ? '' : 's'}`;
+    cel.font = { name: FONTE, size: 10, bold: true, color: { argb: COR.tinta } };
+    cel.fill = preenche(COR.turno);
+    cel.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    cel.border = bordas;
+  }
+  // as linhas de uma aba com uma pessoa por linha: com turnos, cada turno abre com a faixa do nome e fecha
+  // com "Trabalhando" e "Mínimo pedido" do turno; sem turnos, as duas linhas ficam no fim, como sempre
+  function linhasPorGrupo(x, L1) {
+    const linha = Array(x.N), blocos = [];
+    let r = L1;
+    x.grupos.forEach(g => {
+      const faixa = x.comTurnos ? r++ : null;
+      const a = r;
+      g.membros.forEach(e => { linha[e] = r++; });
+      blocos.push({ g, faixa, a, b: r - 1, trab: r, min: r + 1 });
+      r += 2;
+    });
+    return { linha, blocos, fim: r - 1 };
+  }
+
   function cabecalho(ws, r, c, v, largura) {
     const cel = ws.getCell(r, c);
     cel.value = v;
@@ -76,9 +104,13 @@
 
   // ---------------- formato "uma linha por dia" ----------------
   function abaPorDia(wb, M, x) {
-    const { cfg, N, K, ini, fim, nomeFeriado } = x;
+    const { cfg, N, K, ini, fim, nomeFeriado, grupos } = x;
     const L0 = 4, P1 = 5;                                 // linha do cabeçalho e 1ª linha de dados
-    const C1 = 3, CN = C1 + N - 1, C_TRAB = CN + 1, C_MIN = CN + 2, C_OBS = CN + 3;
+    // as pessoas ficam lado a lado na ordem dos turnos; depois um "Trabalhando" e um "Mínimo" por turno
+    const G = grupos.length, C1 = 3, CN = C1 + N - 1, C_TRAB = CN + 1, C_MIN = CN + 1 + G, C_OBS = CN + 1 + 2 * G;
+    const coluna = Array(N);
+    let c0 = C1;
+    grupos.forEach(g => g.membros.forEach(e => { coluna[e] = c0++; }));
     const ws = wb.addWorksheet('Calendário', {
       views: [{ state: 'frozen', xSplit: 2, ySplit: L0, showGridLines: false }],
       pageSetup: { orientation: N > 6 ? 'landscape' : 'portrait', paperSize: 9, printTitlesRow: `${L0}:${L0}`,
@@ -89,9 +121,19 @@
       'laranja no domingo = semana com menos de 2 folgas.');
     cabecalho(ws, L0, 1, 'Data', 12);
     cabecalho(ws, L0, 2, 'Dia da Semana', 15);
-    cfg.nomes.forEach((nome, e) => cabecalho(ws, L0, C1 + e, nome, Math.max(12, Math.min(22, nome.length + 3))));
-    cabecalho(ws, L0, C_TRAB, 'Trabalhando', 12);
-    cabecalho(ws, L0, C_MIN, 'Mínimo', 9);
+    cfg.nomes.forEach((nome, e) => cabecalho(ws, L0, coluna[e], nome, Math.max(12, Math.min(22, nome.length + 3))));
+    if (x.comTurnos) {
+      // como na planilha da RH: o nome do turno em cima das pessoas dele, e o turno embaixo de "Trabalhando"
+      const junta = (c1, c2, v) => { if (c2 > c1) ws.mergeCells(L0 - 1, c1, L0 - 1, c2); cabecalho(ws, L0 - 1, c1, v); };
+      grupos.forEach(g => { if (g.membros.length) junta(coluna[g.membros[0]], coluna[g.membros[g.membros.length - 1]], g.nome); });
+      junta(C_TRAB, C_TRAB + G - 1, 'Trabalhando');
+      junta(C_MIN, C_MIN + G - 1, 'Mínimo');
+      grupos.forEach((g, i) => { cabecalho(ws, L0, C_TRAB + i, g.nome, 12); cabecalho(ws, L0, C_MIN + i, g.nome, 9); });
+      ws.getRow(L0 - 1).height = 20;
+    } else {
+      cabecalho(ws, L0, C_TRAB, 'Trabalhando', 12);
+      cabecalho(ws, L0, C_MIN, 'Mínimo', 9);
+    }
     cabecalho(ws, L0, C_OBS, 'Observação', 34);
     ws.getRow(L0).height = 22;
 
@@ -106,16 +148,19 @@
       cData.numFmt = 'dd/mm/yyyy';
       ws.getCell(r, 2).value = DIA_NOME[d];
       x.grade.forEach((linha, e) => {
-        const cel = ws.getCell(r, C1 + e);
+        const cel = ws.getCell(r, coluna[e]);
         cel.value = PALAVRA[linha[k]];
         if (linha[k] !== 'X') {
           cel.dataValidation = { type: 'list', allowBlank: false, formulae: ['"Trabalha,Folga"'], showErrorMessage: true,
             errorTitle: 'Valor inválido', error: 'Use Trabalha ou Folga.' };
         }
       });
-      const col = `${letra(C1)}${r}:${letra(CN)}${r}`;
-      ws.getCell(r, C_TRAB).value = cfg.aberto[d] ? f(`COUNTIF(${col},"Trabalha")`, x.grade.filter(l => l[k] === 'T').length) : '—';
-      ws.getCell(r, C_MIN).value = cfg.aberto[d] ? cfg.minimo[d] : '—';
+      grupos.forEach((g, i) => {
+        const col = g.membros.length ? `${letra(coluna[g.membros[0]])}${r}:${letra(coluna[g.membros[g.membros.length - 1]])}${r}` : null;
+        const trab = g.membros.filter(e => x.grade[e][k] === 'T').length;
+        ws.getCell(r, C_TRAB + i).value = cfg.aberto[d] && col ? f(`COUNTIF(${col},"Trabalha")`, trab) : '—';
+        ws.getCell(r, C_MIN + i).value = cfg.aberto[d] ? g.minimo[d] : '—';
+      });
       if (nomeFeriado[dia]) {
         ws.getCell(r, C_OBS).value = `Feriado: ${nomeFeriado[dia]} (se abrir, pagar em dobro ou dar folga)`;
       }
@@ -154,13 +199,15 @@
       { type: 'cellIs', operator: 'equal', formulae: ['"Trabalha"'], priority: 6,
         style: { font: { color: { argb: COR.trabalhaFraco } } } },
     ] });
-    const ct = letra(C_TRAB), cm = letra(C_MIN);
-    regras.push({ ref: `${ct}${P1}:${ct}${ult}`, rules: [{ type: 'expression', priority: 5,
-      formulae: [`AND(ISNUMBER(${cm}${P1}),${ct}${P1}<${cm}${P1})`], style: estiloErro }] });
+    grupos.forEach((_, i) => {           // "Trabalhando" de cada turno contra o mínimo do turno
+      const ct = letra(C_TRAB + i), cm = letra(C_MIN + i);
+      regras.push({ ref: `${ct}${P1}:${ct}${ult}`, rules: [{ type: 'expression', priority: 5,
+        formulae: [`AND(ISNUMBER(${cm}${P1}),${ct}${P1}<${cm}${P1})`], style: estiloErro }] });
+    });
     regras.forEach(rg => ws.addConditionalFormatting(rg));
 
     // folgas por semana e resumo, lendo a própria aba
-    const ref = (e, a, b) => `'Calendário'!${letra(C1 + e)}${a}:${letra(C1 + e)}${b}`;
+    const ref = (e, a, b) => `'Calendário'!${letra(coluna[e])}${a}:${letra(coluna[e])}${b}`;
     const semanasLista = [];
     for (let seg = x.seg0; seg <= fim; seg += 7) {
       const a = Math.max(seg, ini), b = Math.min(seg + 6, fim);
@@ -169,13 +216,13 @@
     const dias = `'Calendário'!$B$${P1}:$B$${ult}`;
     // as abas que leem o calendário vêm depois da escala fixa: quem chama decide a ordem.
     // `fonte` diz em que célula do Calendário está o dia de cada pessoa (o quadro do mês lê dali).
-    return { fonte: (e, dia) => `'Calendário'!$${letra(C1 + e)}$${linhaDoDia[dia]}`, depois: () => {
+    return { fonte: (e, dia) => `'Calendário'!$${letra(coluna[e])}$${linhaDoDia[dia]}`, depois: () => {
       abaFolgasSemana(wb, M, x, semanasLista, (e, s) =>
-        `COUNTIF(${ref(e, s.a, s.b)},"Folga")+COUNTIF(${ref(e, s.a, s.b)},"Fechado")`, e => `'Calendário'!${letra(C1 + e)}${L0}`);
+        `COUNTIF(${ref(e, s.a, s.b)},"Folga")+COUNTIF(${ref(e, s.a, s.b)},"Fechado")`, e => `'Calendário'!${letra(coluna[e])}${L0}`);
       abaResumo(wb, x, e => {
         const faixa = ref(e, P1, ult);
         return [
-          f(`'Calendário'!${letra(C1 + e)}${L0}`, cfg.nomes[e]),
+          f(`'Calendário'!${letra(coluna[e])}${L0}`, cfg.nomes[e]),
           f(`COUNTIF(${faixa},"Folga")`, x.conta(e, ini, fim, v => v === 'F')),
           f(`COUNTIFS(${dias},"Domingo",${faixa},"Folga")+COUNTIFS(${dias},"Domingo",${faixa},"Fechado")`, x.conta(e, ini, fim, (v, d) => d === 6 && ehFolga(v))),
           f(`COUNTIFS(${dias},"Domingo",${faixa},"Trabalha")`, x.conta(e, ini, fim, (v, d) => d === 6 && v === 'T')),
@@ -187,10 +234,10 @@
 
   // ---------------- formato "uma linha por pessoa" ----------------
   function abaPorPessoa(wb, M, x) {
-    const { cfg, seg0, grade, N, total, semanas, K, ini, fim, nomeFeriado } = x;
-    const C0 = 2, L_SEM = 3, L_DIA = 4, L_DATA = 5, L1 = 6, LN = L1 + N - 1;
-    const L_TRAB = LN + 1, L_MIN = LN + 2;
+    const { cfg, seg0, grade, total, semanas, K, ini, fim, nomeFeriado } = x;
+    const C0 = 2, L_SEM = 3, L_DIA = 4, L_DATA = 5, L1 = 6;
     const ultCol = C0 + total - 1;
+    const lin = linhasPorGrupo(x, L1), LN = lin.fim;
     const ws = wb.addWorksheet('Calendário', {
       views: [{ state: 'frozen', xSplit: 1, ySplit: L_DATA, showGridLines: false }],
       pageSetup: { orientation: 'landscape', paperSize: 9, printTitlesRow: `${L_SEM}:${L_DATA}`, printTitlesColumn: 'A:A',
@@ -234,8 +281,9 @@
       }
     }
 
+    lin.blocos.forEach(bl => { if (bl.faixa) faixaTurno(ws, bl.faixa, 1, ultCol, bl.g.nome, bl.g.membros.length); });
     grade.forEach((linha, e) => {
-      const r = L1 + e;
+      const r = lin.linha[e];
       const nome = ws.getCell(r, 1);
       nome.value = cfg.nomes[e];
       nome.font = { name: FONTE, size: 10, color: { argb: COR.tinta } };
@@ -262,20 +310,22 @@
       cel.font = { name: FONTE, size: 9, italic: true, bold: true, color: { argb: COR.tinta } };
       cel.border = bordas;
     };
-    rotulo(L_TRAB, 'Trabalhando');
-    rotulo(L_MIN, 'Mínimo pedido');
-    for (let k = 0; k < total; k++) {
-      const c = C0 + k, col = letra(c), dia = seg0 + k, d = k % 7;
-      const dentro = dia >= ini && dia <= fim && cfg.aberto[d];
-      const t = ws.getCell(L_TRAB, c), m = ws.getCell(L_MIN, c);
-      t.value = dentro ? f(`COUNTIF(${col}${L1}:${col}${LN},"T")`, grade.filter(l => l[k] === 'T').length) : '—';
-      m.value = dentro ? cfg.minimo[d] : '—';
-      [t, m].forEach(cel => {
-        cel.alignment = { horizontal: 'center' };
-        cel.border = bordas;
-        cel.font = { name: FONTE, size: 9, italic: true, color: { argb: dentro ? COR.tinta : COR.cinza } };
-      });
-    }
+    lin.blocos.forEach(bl => {
+      rotulo(bl.trab, 'Trabalhando');
+      rotulo(bl.min, 'Mínimo pedido');
+      for (let k = 0; k < total; k++) {
+        const c = C0 + k, col = letra(c), dia = seg0 + k, d = k % 7;
+        const dentro = dia >= ini && dia <= fim && cfg.aberto[d] && bl.b >= bl.a;
+        const t = ws.getCell(bl.trab, c), m = ws.getCell(bl.min, c);
+        t.value = dentro ? f(`COUNTIF(${col}${bl.a}:${col}${bl.b},"T")`, bl.g.membros.filter(e => grade[e][k] === 'T').length) : '—';
+        m.value = dentro ? bl.g.minimo[d] : '—';
+        [t, m].forEach(cel => {
+          cel.alignment = { horizontal: 'center' };
+          cel.border = bordas;
+          cel.font = { name: FONTE, size: 9, italic: true, color: { argb: dentro ? COR.tinta : COR.cinza } };
+        });
+      }
+    });
 
     ws.addConditionalFormatting({ ref: `${letra(C0)}${L1}:${letra(ultCol)}${LN}`, rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"F"'], priority: 3,
@@ -292,10 +342,10 @@
         { type: 'expression', priority: 1, formulae: [`COUNTIF(${letra(C0)}${L1}:${letra(c1)}${L1},"T")=${K + 1}`], style: estiloErro },
       ] });
     }
-    ws.addConditionalFormatting({ ref: `${letra(C0)}${L_TRAB}:${letra(ultCol)}${L_TRAB}`, rules: [
-      { type: 'expression', priority: 2, formulae: [`AND(ISNUMBER(${letra(C0)}${L_MIN}),${letra(C0)}${L_TRAB}<${letra(C0)}${L_MIN})`],
+    lin.blocos.forEach(bl => ws.addConditionalFormatting({ ref: `${letra(C0)}${bl.trab}:${letra(ultCol)}${bl.trab}`, rules: [
+      { type: 'expression', priority: 2, formulae: [`AND(ISNUMBER(${letra(C0)}${bl.min}),${letra(C0)}${bl.trab}<${letra(C0)}${bl.min})`],
         style: estiloErro },
-    ] });
+    ] }));
 
     const semanasLista = [];
     for (let w = 0; w < semanas; w++) {
@@ -303,15 +353,16 @@
       semanasLista.push({ seg, a: C0 + w * 7, b: C0 + w * 7 + 6, da: seg, db: seg + 6, inteira: seg >= ini && seg + 6 <= fim });
     }
     const dias = `'Calendário'!${letra(C0)}${L_DIA}:${letra(ultCol)}${L_DIA}`;
-    return { fonte: (e, dia) => `'Calendário'!$${letra(C0 + dia - seg0)}$${L1 + e}`, depois: () => {
+    const R = e => lin.linha[e];
+    return { fonte: (e, dia) => `'Calendário'!$${letra(C0 + dia - seg0)}$${R(e)}`, depois: () => {
       abaFolgasSemana(wb, M, x, semanasLista, (e, s) => {
-        const f = `'Calendário'!${letra(s.a)}${L1 + e}:${letra(s.b)}${L1 + e}`;
+        const f = `'Calendário'!${letra(s.a)}${R(e)}:${letra(s.b)}${R(e)}`;
         return `COUNTIF(${f},"F")+COUNTIF(${f},"X")`;
-      }, e => `'Calendário'!A${L1 + e}`);
+      }, e => `'Calendário'!A${R(e)}`);
       abaResumo(wb, x, e => {
-        const faixa = `'Calendário'!${letra(C0)}${L1 + e}:${letra(ultCol)}${L1 + e}`;
+        const faixa = `'Calendário'!${letra(C0)}${R(e)}:${letra(ultCol)}${R(e)}`;
         return [
-          f(`'Calendário'!A${L1 + e}`, cfg.nomes[e]),
+          f(`'Calendário'!A${R(e)}`, cfg.nomes[e]),
           f(`COUNTIF(${faixa},"F")`, x.conta(e, seg0, seg0 + total - 1, v => v === 'F')),
           f(`SUMPRODUCT((${dias}="dom")*((${faixa}="F")+(${faixa}="X")))`, x.conta(e, seg0, seg0 + total - 1, (v, d) => d === 6 && ehFolga(v))),
           f(`SUMPRODUCT((${dias}="dom")*(${faixa}="T"))`, x.conta(e, seg0, seg0 + total - 1, (v, d) => d === 6 && v === 'T')),
@@ -341,8 +392,9 @@
   }
 
   function abaQuadroMes(wb, M, x, mes, fonte) {
-    const { cfg, N, nomeFeriado } = x;
-    const L_DIA = 4, L_DATA = 5, L1 = 6, LN = L1 + N - 1, L_TRAB = LN + 1, L_MIN = LN + 2;
+    const { cfg, nomeFeriado } = x;
+    const L_DIA = 4, L_DATA = 5, L1 = 6;
+    const lin = linhasPorGrupo(x, L1), LN = lin.fim, L_MIN = LN;
     const C0 = 2, nd = mes.b - mes.a + 1, CN = C0 + nd - 1, C_FOL = CN + 1, C_DOM = CN + 2;
     const ws = wb.addWorksheet(mes.aba, {
       views: [{ state: 'frozen', xSplit: 1, ySplit: L_DATA, showGridLines: false }],
@@ -388,8 +440,9 @@
     // fim de semana separado por uma borda mais forte depois do domingo
     const borda = d => (d === 6 ? Object.assign({}, bordas, { right: { style: 'medium', color: { argb: COR.semana } } }) : bordas);
     const dias = `$${letra(C0)}$${L_DIA}:$${letra(CN)}$${L_DIA}`;
-    for (let e = 0; e < N; e++) {
-      const r = L1 + e;
+    lin.blocos.forEach(bl => { if (bl.faixa) faixaTurno(ws, bl.faixa, 1, C_DOM, bl.g.nome, bl.g.membros.length); });
+    for (let e = 0; e < x.N; e++) {
+      const r = lin.linha[e];
       const nome = ws.getCell(r, 1);
       nome.value = cfg.nomes[e];
       nome.font = { name: FONTE, size: 10, color: { argb: COR.tinta } };
@@ -420,20 +473,27 @@
       cel.font = { name: FONTE, size: 9, italic: true, bold: true, color: { argb: COR.tinta } };
       cel.border = bordas;
     };
-    rotulo(L_TRAB, 'Trabalhando');
-    rotulo(L_MIN, 'Mínimo pedido');
-    colunas.forEach(({ dia, c, d, fundo }) => {
-      const col = letra(c), aberto = cfg.aberto[d];
-      const t = ws.getCell(L_TRAB, c), m = ws.getCell(L_MIN, c);
-      const folgam = x.grade.filter(l => ehFolga(l[dia - x.seg0])).length;
-      t.value = aberto ? f(`${N}-COUNTIF(${col}${L1}:${col}${LN},"F")-COUNTIF(${col}${L1}:${col}${LN},"X")`, N - folgam) : '—';
-      m.value = aberto ? cfg.minimo[d] : '—';
-      [t, m].forEach(cel => {
-        cel.alignment = { horizontal: 'center' };
-        cel.border = borda(d);
-        cel.font = { name: FONTE, size: 9, italic: true, color: { argb: aberto ? COR.tinta : COR.cinza } };
-        if (fundo) cel.fill = preenche(fundo);
+    lin.blocos.forEach(bl => {
+      const n = bl.g.membros.length;
+      rotulo(bl.trab, 'Trabalhando');
+      rotulo(bl.min, 'Mínimo pedido');
+      colunas.forEach(({ dia, c, d, fundo }) => {
+        const col = letra(c), aberto = cfg.aberto[d] && n > 0;
+        const t = ws.getCell(bl.trab, c), m = ws.getCell(bl.min, c);
+        const folgam = bl.g.membros.filter(e => ehFolga(x.grade[e][dia - x.seg0])).length;
+        t.value = aberto ? f(`${n}-COUNTIF(${col}${bl.a}:${col}${bl.b},"F")-COUNTIF(${col}${bl.a}:${col}${bl.b},"X")`, n - folgam) : '—';
+        m.value = aberto ? bl.g.minimo[d] : '—';
+        [t, m].forEach(cel => {
+          cel.alignment = { horizontal: 'center' };
+          cel.border = borda(d);
+          cel.font = { name: FONTE, size: 9, italic: true, color: { argb: aberto ? COR.tinta : COR.cinza } };
+          if (fundo) cel.fill = preenche(fundo);
+        });
       });
+      ws.addConditionalFormatting({ ref: `${letra(C0)}${bl.trab}:${letra(CN)}${bl.trab}`, rules: [
+        { type: 'expression', priority: 3, formulae: [`AND(ISNUMBER(${letra(C0)}${bl.min}),${letra(C0)}${bl.trab}<${letra(C0)}${bl.min})`],
+          style: estiloErro },
+      ] });
     });
 
     ws.addConditionalFormatting({ ref: `${letra(C0)}${L1}:${letra(CN)}${LN}`, rules: [
@@ -441,10 +501,6 @@
         style: { fill: preenche(COR.folga), font: { bold: true, color: { argb: COR.folgaTinta } } } },
       { type: 'cellIs', operator: 'equal', formulae: ['"X"'], priority: 2,
         style: { fill: preenche(COR.fechado), font: { color: { argb: COR.cinza } } } },
-    ] });
-    ws.addConditionalFormatting({ ref: `${letra(C0)}${L_TRAB}:${letra(CN)}${L_TRAB}`, rules: [
-      { type: 'expression', priority: 3, formulae: [`AND(ISNUMBER(${letra(C0)}${L_MIN}),${letra(C0)}${L_TRAB}<${letra(C0)}${L_MIN})`],
-        style: estiloErro },
     ] });
 
     const ferMes = x.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
@@ -455,6 +511,17 @@
     nota.font = { name: FONTE, size: 9, italic: true, color: { argb: COR.cinza } };
   }
 
+  // uma linha por pessoa a partir de L1; com turnos, a faixa do turno antes das pessoas dele (sem linhas de total)
+  function ordemComFaixas(ws, x, L1, ultCol) {
+    const de = Array(x.N);
+    let r = L1;
+    x.grupos.forEach(g => {
+      if (x.comTurnos) faixaTurno(ws, r++, 1, ultCol, g.nome, g.membros.length);
+      g.membros.forEach(e => { de[e] = r++; });
+    });
+    return { de, fim: r - 1 };
+  }
+
   function abaFolgasSemana(wb, M, x, semanasLista, formula, nomeRef) {
     const fs = wb.addWorksheet('Folgas por semana', { views: [{ state: 'frozen', xSplit: 1, ySplit: 3, showGridLines: false }] });
     titulo(fs, 'Folgas por semana (precisa de 2: vermelho se faltar, amarelo se passar; folga a mais pode ser férias ou afastamento)');
@@ -462,8 +529,9 @@
     cabecalho(fs, 3, 1, 'Funcionário', 24);
     fs.getRow(3).height = 28;
     semanasLista.forEach((s, w) => cabecalho(fs, 3, 2 + w, `${M.ddmm(s.seg)}${s.inteira ? '' : '\n(parcial)'}`, 11));
+    const linha = ordemComFaixas(fs, x, 4, 1 + semanasLista.length);
     for (let e = 0; e < x.N; e++) {
-      const r = 4 + e;
+      const r = linha.de[e];
       const nome = fs.getCell(r, 1);
       nome.value = f(nomeRef(e), x.cfg.nomes[e]);
       nome.font = { name: FONTE, size: 10 };
@@ -482,7 +550,7 @@
     semanasLista.forEach((s, w) => {
       if (!s.inteira) return;
       const col = letra(2 + w);
-      fs.addConditionalFormatting({ ref: `${col}4:${col}${3 + x.N}`, rules: [
+      fs.addConditionalFormatting({ ref: `${col}4:${col}${linha.fim}`, rules: [
         { type: 'cellIs', operator: 'lessThan', formulae: ['2'], priority: 1, style: estiloErro },
         { type: 'cellIs', operator: 'greaterThan', formulae: [String(normais)], priority: 2, style: estiloAviso },
       ] });
@@ -496,9 +564,10 @@
     ['Funcionário', 'Folgas no período', 'Domingos de folga', 'Domingos trabalhados', 'Sábados trabalhados']
       .forEach((t, i) => cabecalho(rs, 3, 1 + i, t, i ? 13 : 24));
     rs.getRow(3).height = 30;
+    const linha = ordemComFaixas(rs, x, 4, 5);
     for (let e = 0; e < x.N; e++) {
       formulas(e).forEach((v, i) => {
-        const cel = rs.getCell(4 + e, 1 + i);
+        const cel = rs.getCell(linha.de[e], 1 + i);
         cel.value = v;
         cel.font = { name: FONTE, size: 10 };
         cel.border = bordas;
@@ -529,9 +598,13 @@
     };
     secao('Configuração usada');
     linha('Período', `${x.dataLonga(ini)} a ${x.dataLonga(fim)}`);
-    linha('Equipe', `${N} pessoa${N > 1 ? 's' : ''}`);
+    const porDia = minimo => M.DIAS.map((d, i) => (cfg.aberto[i] ? `${d} ${minimo[i]}` : null)).filter(Boolean).join(' · ');
+    linha('Equipe', `${N} pessoa${N > 1 ? 's' : ''}` + (x.comTurnos
+      ? ` em ${x.grupos.length} turnos fixos: ` + x.grupos.map(g => `${g.nome} ${g.membros.length}`).join(' · ') : ''));
     linha('Dias de funcionamento', M.DIAS_LONGOS.filter((_, d) => cfg.aberto[d]).join(', '));
-    linha('Mínimo de pessoas por dia', M.DIAS.map((d, i) => (cfg.aberto[i] ? `${d} ${cfg.minimo[i]}` : null)).filter(Boolean).join(' · '));
+    if (x.comTurnos) x.grupos.forEach(g => linha(`Mínimo por dia · ${g.nome}`, porDia(g.minimo)));
+    else linha('Mínimo de pessoas por dia', porDia(cfg.minimo));
+    if (x.comTurnos) linha('Turnos', 'Cada pessoa fica sempre no mesmo turno. Cada turno tem a própria escala e é conferido contra o próprio mínimo.');
     linha('Dias em que pode haver folga', M.DIAS_LONGOS.filter((_, d) => cfg.aberto[d] && cfg.podeFolgar[d]).join(', '));
     linha('Máximo de dias seguidos', String(K));
     if (cfg.aberto[6]) {
@@ -578,20 +651,22 @@
         fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
     });
     const uniforme = rodizio.every(r => r.periodo === P);
-    titulo(ws, uniforme ? `Escala fixa · se repete a cada ${P} semana${P > 1 ? 's' : ''}` : 'Escala fixa · cada pessoa repete o próprio ciclo',
+    titulo(ws, uniforme ? `Escala fixa · se repete a cada ${P} semana${P > 1 ? 's' : ''}`
+      : x.comTurnos ? 'Escala fixa · cada turno tem o próprio rodízio' : 'Escala fixa · cada pessoa repete o próprio ciclo',
       `Dias de folga de cada pessoa. A semana 1 começa na segunda ${x.dataLonga(x.seg0)}; quando a linha da pessoa acaba, ela volta para a semana 1. ` +
       'Trocas de um dia só ficam na aba Calendário.');
     cabecalho(ws, 4, 1, 'Funcionário', 24);
     for (let s = 0; s < P; s++) cabecalho(ws, 4, 2 + s, `Semana ${s + 1}\n${M.ddmm(x.seg0 + 7 * s)}`, 13);
     cabecalho(ws, 4, 2 + P, 'Depois', 16);
     ws.getRow(4).height = 30;
+    const linha = ordemComFaixas(ws, x, 5, 2 + P);
     rodizio.forEach((r, e) => {
-      const nome = ws.getCell(5 + e, 1);
+      const nome = ws.getCell(linha.de[e], 1);
       nome.value = x.cfg.nomes[e];
       nome.font = { name: FONTE, size: 10, bold: true, color: { argb: COR.tinta } };
       nome.border = bordas;
       for (let s = 0; s <= P; s++) {
-        const cel = ws.getCell(5 + e, 2 + s);
+        const cel = ws.getCell(linha.de[e], 2 + s);
         cel.alignment = { horizontal: 'center', vertical: 'middle' };
         cel.border = bordas;
         if (s < r.periodo) {
@@ -604,7 +679,7 @@
         }
       }
     });
-    let r = 6 + rodizio.length;
+    let r = linha.fim + 2;
     const nota = txt => {
       const cel = ws.getCell(r++, 1);
       cel.value = txt;
