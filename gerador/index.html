@@ -367,7 +367,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       <legend>1 · Sua equipe hoje</legend>
       <div class="qtd-linha">
         <label for="qtd">Quantas pessoas você tem hoje?</label>
-        <input type="number" id="qtd" min="0" max="500" value="3">
+        <input type="number" id="qtd" min="0" max="500" value="5">
       </div>
       <div class="pessoas" id="pessoas"></div>
       <div class="linha-qtd">
@@ -715,7 +715,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   const CHAVE_PENDENTE = 'escalaCerta.pendente';
 
   const estado = {
-    pessoas: [{ nome: 'Ana', sexo: '' }, { nome: 'Bruno', sexo: '' }, { nome: 'Carla', sexo: '' }],
+    // exemplo de 5: com o mínimo sugerido falta 1 contratação, que é o que chama a atenção (o de 3 dava conta)
+    pessoas: ['Ana', 'Bruno', 'Carla', 'Diego', 'Elisa'].map(nome => ({ nome, sexo: '' })),
     res: null, grade: null, val: null, equipe: null, jaMontou: false,
     maxSeguidos: 5,            // 5 sempre; 6 só quando o cliente aceita a sugestão (a lei permite)
     semente: 0, liberado: false, visao: 'pessoa', mes: 0, meses: [],
