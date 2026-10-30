@@ -1215,8 +1215,11 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         // refazer o cálculo na mesma visita: quem testa cenários está planejando a empresa de verdade
         rastreia('recalculo', { equipe: eqR.hoje, faltam: eqR.contratadas || 0, vez: calculosNaVisita, como });
       }
-      // no celular o resultado fica embaixo do formulário: leva a pessoa até ele
-      if (window.innerWidth < 900) {
+      // no celular o resultado fica embaixo do formulário: leva a pessoa até ele. Quem recalculou pelos botões
+      // da prévia ou da escala ("outra opção", folgas) fica onde está: subir até o placar a cada toque obrigava a
+      // descer de novo (30/10: 14 recálculos e 12 toques em "Ver a minha escala" seguidos)
+      const daEscala = como === 'outra_opcao' || como.startsWith('folgas_');
+      if (window.innerWidth < 900 && !daEscala) {
         const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         $('status').scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
       }
