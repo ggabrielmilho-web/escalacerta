@@ -4,6 +4,7 @@
   python admin.py revogar <email>   tira o acesso (estorno ou arrependimento); a conta e a escala salva continuam
   python admin.py sair <email>      derruba a conta em todos os aparelhos (no próximo, entra de novo pelo código)
   python admin.py apagar <email>    apaga a conta a pedido da pessoa (LGPD, art. 18): e-mail e escala salva
+  python admin.py meta <pedido>     manda de novo à Meta a compra de um pedido aprovado (até 7 dias depois)
 
 Não há senha: quem quer entrar recebe um código de 6 números no e-mail.
 """
@@ -11,6 +12,7 @@ import sys
 
 import banco
 import contas
+import meta
 
 
 def _conta(email):
@@ -73,6 +75,12 @@ def apagar(email):
     print(f"Conta {u['id']} apagada. O mesmo e-mail pode criar uma conta nova do zero.")
 
 
+def avisar_meta(pid):
+    """Compra que não chegou à Meta (sem token na hora, ou de antes da API de Conversões). A Meta aceita até 7 dias
+    depois; o event_id é o do pedido, e a repetição dentro de 48 h é descartada por ela."""
+    print("Meta recebeu a compra" if meta.avisar_compra(pid) else "Não foi: veja o log (token, pedido aprovado?)")
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "liberar":
         liberar(sys.argv[2])
@@ -82,5 +90,7 @@ if __name__ == "__main__":
         sair(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "apagar":
         apagar(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "meta":
+        avisar_meta(sys.argv[2])
     else:
         sys.exit(__doc__)

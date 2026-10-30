@@ -264,7 +264,7 @@ O código para entrar e o recibo "Compra confirmada" saem pelo **Resend**, com o
 
 ## 10.1 Rastreio do tráfego (Google Analytics e Pixel da Meta)
 
-Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBXV19MN` e Pixel `4114167638802615` (IDs públicos, aparecem no código de qualquer página). **Nenhum dado pessoal sai do site**: nem e-mail nem os nomes da equipe.
+Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBXV19MN` e Pixel `4114167638802615` (IDs públicos, aparecem no código de qualquer página). **Nenhum dado pessoal sai da página**: nem e-mail nem os nomes da equipe (o e-mail embaralhado só vai do servidor, na compra; abaixo).
 
 | Passo | GA4 | Pixel da Meta |
 |---|---|---|
@@ -275,7 +275,15 @@ Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBX
 | Foi para o Mercado Pago | `begin_checkout` | `InitiateCheckout` |
 | Pagamento confirmado na página | `purchase` (id do pedido, R$ 37) | `Purchase` (`eventID` = `compra-<pedido>`) |
 
-A compra é contada **uma vez por pedido** (marca no navegador). Ela só é contada quando a pessoa vê a confirmação na página; quem paga e nunca mais abre o site não conta. Para cobrir esse caso, o próximo passo é a **API de Conversões da Meta** no servidor, no aviso do Mercado Pago, com o mesmo `eventID` para a Meta não contar em dobro. Testado com os scripts reais e os envios interceptados (26/10). A Meta não envia eventos de navegador automatizado em localhost; a conferência real é no "Testar eventos" do Gerenciador de Eventos.
+A compra é contada **uma vez por pedido** (marca no navegador). Pela página, ela só é contada quando a pessoa vê a confirmação; quem paga e nunca mais abre o site não conta.
+
+**API de Conversões (`servidor/meta.py`, desde 30/10).** No celular o anúncio abre dentro do Instagram e a volta do Mercado Pago cai no Chrome: outro navegador, sem o cookie do anúncio. As duas primeiras vendas (30/10) não chegaram à Meta. Agora:
+- `POST /api/pedido` guarda na coluna `pedidos.rastreio` os cookies do Pixel (`_fbp`, `_fbc` = o clique do anúncio), o IP real e o navegador;
+- quando o pedido é aprovado (aviso do Mercado Pago ou consulta da página, quem trocar o status primeiro), o servidor manda o `Purchase` em segundo plano, com o e-mail em SHA-256, valor e `event_id` = `compra-<pedido>`, o mesmo da página: se os dois chegam, a Meta conta um;
+- depois de enviar, o rastreio do pedido é apagado; pedido não pago perde o rastreio em 2 dias (Política de Privacidade);
+- sem `META_CAPI_TOKEN` nada é enviado (só o log). `META_TEST_CODE` manda para "Testar eventos" do Gerenciador;
+- pedido de antes disso (sem rastreio): `admin.py meta <pedido>` manda como `system_generated`, com o IP do registro de acesso. A Meta aceita até 7 dias depois;
+- cada envio fica no `log_acesso` como `meta:<pedido>:ok` ou `meta:<pedido>:nao_enviado`. Testado com os scripts reais e os envios interceptados (26/10). A Meta não envia eventos de navegador automatizado em localhost; a conferência real é no "Testar eventos" do Gerenciador de Eventos.
 
 ---
 
@@ -286,6 +294,7 @@ python admin.py liberar <email>   # libera o acesso ilimitado; cria a conta se n
 python admin.py revogar <email>   # tira o acesso (estorno ou arrependimento); a conta e a escala salva continuam
 python admin.py sair <email>      # derruba a conta em todos os aparelhos (perdeu o celular logado)
 python admin.py apagar <email>    # pedido de exclusão (LGPD): apaga e-mail e escala salva; pede para digitar APAGAR
+python admin.py meta <pedido>     # manda à Meta a compra de um pedido aprovado que não chegou lá (até 7 dias)
 ```
 Use para cortesia, para teste, para estorno feito fora do botão (o direito de arrependimento de 7 dias do CDC vale para compra pela internet; o `revogar` não devolve o dinheiro: estorne no painel do Mercado Pago) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. Quem perdeu o acesso ao e-mail: confira que é a pessoa, troque o e-mail da conta no banco e rode `sair`.
 
@@ -375,5 +384,5 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 1. Deploy em `escalacerta.carvalhoia.com` (seção 12).
 2. Aviso de cookies do GA4 e do Pixel (orientação da ANPD), quando o volume crescer.
 3. Teste de compra real (Pix e cartão) e do e-mail de recuperação (o 403 do Resend foi corrigido em 28/10: agente `Python-urllib` barrado pelo Cloudflare).
-4. Pixel e GA4 no ar (seção 10.1); falta a API de Conversões da Meta no servidor.
+4. Pixel, GA4 e API de Conversões da Meta (seção 10.1). Conferir o `Purchase` do servidor no Gerenciador de Eventos na próxima venda.
 5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; folguista entre turnos; horário dos turnos; 12x36.

@@ -29,6 +29,7 @@ import banco
 import contas
 import mercado_pago as mp
 import correio
+import meta
 from config import config
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -135,9 +136,10 @@ def criar_pedido(request: Request):
     if contas.publico(u)["ativo"]:
         raise HTTPException(409, "Sua conta já tem acesso ilimitado.")      # não cobrar duas vezes
     pid = secrets.token_hex(8)
+    meta.limpar_antigos()
     with banco.conexao() as con:
-        con.execute("INSERT INTO pedidos (id, usuario_id, valor, criado) VALUES (%s, %s, %s, %s)",
-                    (pid, u["id"], config.PRECO, banco.agora()))
+        con.execute("INSERT INTO pedidos (id, usuario_id, valor, criado, rastreio) VALUES (%s, %s, %s, %s, %s)",
+                    (pid, u["id"], config.PRECO, banco.agora(), meta.rastreio_do_pedido(request, ip_de(request))))
     try:
         pref_id, url = mp.criar_preferencia(pid, u["email"])
     except Exception:
@@ -168,6 +170,7 @@ def aprovar(pid, payment_id):
     banco.log(p["usuario_id"], None, None, f"pago:{pid}")
     logger.info("Pedido %s aprovado", pid)
     avisar_compra(p["email"], p["valor"], pid)
+    meta.avisar_compra_depois(pid)
 
 
 def avisar_compra(email, valor, pid):

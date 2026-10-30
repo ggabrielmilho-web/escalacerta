@@ -69,6 +69,9 @@ def criar_tabelas():
                 aprovado TIMESTAMPTZ
             );
             CREATE INDEX IF NOT EXISTS pedidos_usuario ON pedidos (usuario_id);
+            -- cookies do Pixel, IP e navegador de quem pediu, para a Meta ligar a compra ao anúncio (meta.py).
+            -- Some quando a compra é avisada ou em 2 dias
+            ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS rastreio TEXT;
             CREATE TABLE IF NOT EXISTS escalas (
                 usuario_id BIGINT PRIMARY KEY REFERENCES usuarios(id),
                 dados TEXT NOT NULL,                 -- o JSON da página, guardado como veio

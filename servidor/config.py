@@ -27,6 +27,11 @@ class Config:
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
     EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "Escala Certa <nao-responda@carvalhoia.com>")
     EMAIL_RESPOSTA = os.getenv("EMAIL_RESPOSTA", "")
+    # API de Conversões da Meta: a compra sai do servidor quando o pagamento é aprovado (no celular a volta
+    # do Mercado Pago cai em outro navegador e o Pixel não vê a compra). Sem token, nada é enviado.
+    META_PIXEL_ID = os.getenv("META_PIXEL_ID", "4114167638802615")
+    META_CAPI_TOKEN = os.getenv("META_CAPI_TOKEN", "")
+    META_TEST_CODE = os.getenv("META_TEST_CODE", "")      # código de "Testar eventos" do Gerenciador; vazio em produção
 
 
 config = Config()

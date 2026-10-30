@@ -15,6 +15,7 @@ services:
       - PRECO=37.00
       - NOME_FATURA=ESCALACERTA
       - RESEND_API_KEY=<chave_do_resend>
+      - META_CAPI_TOKEN=<token_da_api_de_conversoes>
       - EMAIL_REMETENTE=Escala Certa <nao-responda@carvalhoia.com>
     deploy:
       mode: replicated
