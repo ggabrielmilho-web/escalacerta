@@ -123,7 +123,8 @@ Rode o teste sempre que mexer no `motor.js`.
 - e-mail que **já tem conta** não entra sem o código, nem pelo "Liberar" (senão digitar o e-mail de quem pagou daria o acesso dele): o servidor responde 409 e já manda o código;
 - depois do pagamento sai um e-mail de **"Compra confirmada"**, que também ensina a entrar em outro aparelho;
 - o topo mostra "Entrar" ou "Minha conta" (garantia de 7 dias, sair);
-- **a escala é salva na conta** sozinha e volta em qualquer aparelho.
+- **a escala é salva na conta** sozinha e volta em qualquer aparelho. **Desde 30/10, a partir do e-mail, antes de pagar:** a cada cálculo e de novo na hora de ir para o Mercado Pago. Depois de pagar, em qualquer navegador em que a pessoa entrar (pela volta do pagamento ou pelo link do e-mail), a escala dela aparece pronta.
+- **Por quê (30/10, primeira venda):** o comprador pagou pelo app do Mercado Pago e voltou ao site **em outro navegador** (o do Instagram não é o do celular). Sem sessão, entrou por código; sem a cópia local, caiu em "Pagamento confirmado" com o formulário vazio do exemplo e **sem a escala dele**. Também pediu 4 códigos e errou 3 vezes: digitava o que chegava primeiro, e cada código novo cancelava o anterior.
 - **Por quê:** em 27–28/10, 4 de 4 pessoas que clicaram em "Liberar" fecharam a janela de e-mail e senha sem enviar (nenhum `POST /api/conta` no registro). O código não é pedido antes de pagar porque tiraria a pessoa do navegador do Instagram para buscar o e-mail.
 
 ---
@@ -217,14 +218,14 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 | `POST /api/pedido` | Cria a cobrança no Checkout Pro para a conta logada (409 se a conta já tem acesso: não cobra duas vezes) |
 | `GET /api/pedido/{id}` | Situação; se pago, libera o acesso ilimitado (só o dono do pedido vê) |
 | `POST /api/reembolso` | **Garantia de 7 dias** (CDC art. 49): o cliente cancela em "Minha conta"; estorno total na hora pelo Mercado Pago (`X-Idempotency-Key` por pedido), pedido vira `reembolsado` e o acesso sai. Uma vez por conta; depois, por e-mail. Se o MP recusar (sem saldo), o pedido volta a `aprovado` e a mensagem manda escrever. Aviso atrasado do MP nunca relibera pedido estornado. `GET /api/eu` traz `reembolso_ate` |
-| `GET`/`PUT /api/escala` | A escala salva da conta (só com acesso ativo; até 5 MB) |
+| `GET`/`PUT /api/escala` | A escala salva da conta (até 5 MB). Guardar: qualquer conta, pagando ou não. Ler: só com acesso ativo |
 | `POST /webhook/mercadopago` | Aviso do Mercado Pago. O pagamento é sempre **consultado de novo** na API |
 | `GET /` | O site: **só a pasta `gerador`**, nunca a raiz do projeto |
 
 **Banco** (`banco.py`): banco **`escala_certa`** no Postgres do servidor, com usuário próprio (`escala_app`), nunca o banco do DanfeZap nem o superusuário. Tabelas `usuarios`, `pedidos`, `escalas`, `recuperacoes` e `log_acesso`, criadas ao subir (`CREATE TABLE IF NOT EXISTS`, uma vez por processo, com `lock_timeout`). Datas em `TIMESTAMPTZ`, devolvidas à página sempre em UTC; a escala salva é o JSON da página guardado como texto. Pool psycopg 3 que testa a conexão antes de emprestar (o Postgres compartilhado fecha conexão ociosa), como no Arado. O acesso é a coluna `liberado_em` (quando foi liberado; vazio = sem acesso), sem data de fim.
 
 **Segurança.** Não há senha (desde 29/10/2026):
-- **código de 6 dígitos para entrar**: vale 15 min, aceita 5 tentativas, no máximo 5 por hora por conta, uso único (pedir outro derruba o anterior), guardado com HMAC. **Nunca vai para o log em produção**. A tentativa errada é gravada antes de responder o erro (até 29/10 o rollback da transação desfazia a contagem e o limite de 5 não valia);
+- **código de 6 dígitos para entrar**: vale 15 min, aceita 5 tentativas, no máximo 5 por hora por conta, uso único, guardado com HMAC. **Qualquer código ainda válido serve** (desde 30/10; antes, pedir outro derrubava o anterior e o primeiro comprador errou 3 vezes digitando o que chegou primeiro); entrar derruba todos, e o erro conta tentativa em todos os válidos. **Nunca vai para o log em produção**. A tentativa errada é gravada antes de responder o erro (até 29/10 o rollback da transação desfazia a contagem e o limite de 5 não valia);
 - pedir código responde **sempre igual**, exista ou não a conta. A trava por IP é só de volume, em memória;
 - e-mail que já tem conta só entra com o código, inclusive pelo "Liberar";
 - **sessão em cookie assinado** (`SECRET_KEY`, obrigatória em produção), `HttpOnly`, `SameSite=Lax`, `Secure` com https; o login dura 90 dias (é só a sessão: o acesso pago não vence). Leva a versão do segredo da conta (a coluna ainda se chama `senha_hash`): `admin.py sair` e `apagar` trocam esse segredo e **derrubam todos os aparelhos**. Contas antigas, criadas com senha, continuam válidas e entram pelo código;

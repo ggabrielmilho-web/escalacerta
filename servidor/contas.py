@@ -145,22 +145,25 @@ def entrar(email, codigo, ip):
         raise Erro(_msg_bloqueio(BLOQUEIO_MIN * 60), 429)
     with banco.conexao() as con:
         u = con.execute("SELECT * FROM usuarios WHERE email = %s", (email,)).fetchone()
-        rec = con.execute("SELECT * FROM recuperacoes WHERE usuario_id = %s AND NOT usado ORDER BY id DESC LIMIT 1",
-                          (u["id"],)).fetchone() if u else None
-        if not rec or rec["expira"] < banco.agora() or rec["tentativas"] >= CODIGO_MAX_TENTATIVAS:
+        # qualquer código ainda válido serve, não só o último: quem pede outro porque o e-mail demorou acaba
+        # digitando o que chegou primeiro (30/10: o primeiro comprador errou 3 vezes assim). No máximo 5 códigos
+        # por hora e 5 tentativas cada, e o bloqueio por IP continua: adivinhar segue impraticável.
+        recs = con.execute("SELECT * FROM recuperacoes WHERE usuario_id = %s AND NOT usado AND expira > %s AND tentativas < %s "
+                           "ORDER BY id DESC", (u["id"], banco.agora(), CODIGO_MAX_TENTATIVAS)).fetchall() if u else []
+        if not recs:
             _ip_falha(ip)
             raise Erro("Código inválido ou vencido. Peça um novo.", 400)
-        certo = hmac.compare_digest(rec["codigo_hash"], _hash_codigo(rec["id"], codigo))
+        certo = any(hmac.compare_digest(r["codigo_hash"], _hash_codigo(r["id"], codigo)) for r in recs)
         if certo:
-            # código usado não serve de novo; os mais antigos também caem
+            # código usado não serve de novo; os outros também caem
             con.execute("UPDATE recuperacoes SET usado = TRUE WHERE usuario_id = %s", (u["id"],))
         else:
-            con.execute("UPDATE recuperacoes SET tentativas = tentativas + 1 WHERE id = %s", (rec["id"],))
+            con.execute("UPDATE recuperacoes SET tentativas = tentativas + 1 WHERE id = ANY(%s)", ([r["id"] for r in recs],))
     # o erro sai DEPOIS do commit: levantado dentro do `with`, o rollback desfazia a contagem e o limite de 5 nunca valia
     if not certo:
         _ip_falha(ip)
         banco.log(u["id"], email, ip, "codigo_errado")
-        raise Erro("Código incorreto. Confira o último e-mail que chegou.", 400)
+        raise Erro("Código incorreto. Confira o código no e-mail da Escala Certa.", 400)
     _ip_ok(ip)
     banco.log(u["id"], email, ip, "login")
     return buscar(u["id"])

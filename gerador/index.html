@@ -666,8 +666,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       </details>
       <details>
         <summary>Os nomes da minha equipe ficam guardados? Quem vê?</summary>
-        <p>Enquanto você calcula e vê a prévia, tudo acontece no seu aparelho: os nomes não vão para o nosso servidor.
-          Depois da compra, a escala fica salva na sua conta para você voltar, e só você vê. Se preferir, use só o primeiro
+        <p>Enquanto você só calcula e vê a prévia, tudo acontece no seu aparelho: os nomes não vão para o nosso servidor.
+          Quando você informa o seu e-mail para liberar a escala completa, ela fica salva na sua conta, para não se perder
+          no pagamento nem ao trocar de aparelho, e só você vê. Se preferir, use só o primeiro
           nome, um apelido ou as iniciais. <a href="privacidade.html">Política de Privacidade</a>.</p>
       </details>
       <details>
@@ -1819,7 +1820,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 
   let timerSalvar = null;
   function agendarSalvar(ms) {
-    if (!SERVIDOR || !estado.eu || !estado.eu.ativo || !estado.liberado || !estado.res || !estado.res.ok) return;
+    // com conta (deu o e-mail), a escala fica guardada mesmo antes de pagar: volta em qualquer navegador depois do pagamento
+    if (!SERVIDOR || !estado.eu || !estado.eu.logado || !estado.res || !estado.res.ok) return;
     clearTimeout(timerSalvar);
     timerSalvar = setTimeout(async () => {
       try {
@@ -1847,8 +1849,10 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     b.disabled = true; b.textContent = 'Abrindo o pagamento…';
     try {
       const r = await api('POST', '/api/pedido');
-      // a página sai para o Mercado Pago: guarda a escala para mostrar a mesma na volta
+      // a página sai para o Mercado Pago: guarda a escala para mostrar a mesma na volta. Aqui no navegador e na
+      // conta: a volta do Mercado Pago muitas vezes cai em outro navegador (o do Instagram não é o do celular)
       try { localStorage.setItem(CHAVE_PENDENTE, JSON.stringify({ pedido: r.pedido, snap: snapshot(), quando: Date.now() })); } catch (_) { /* sem armazenamento local */ }
+      if (estado.res && estado.res.ok) { try { await api('PUT', '/api/escala', snapshot()); } catch (_) { /* a cópia local ainda serve */ } }
       rastreia('checkout', { value: precoVenda(), currency: 'BRL', items: itemVenda() }, { value: precoVenda(), currency: 'BRL' });
       if (RASTREIO) await espera(400);       // dá tempo de os avisos saírem antes de trocar de página
       location.href = r.url;
@@ -1906,7 +1910,15 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
             if (!ja) rastreia('compra', { transaction_id: pid, value: precoVenda(), currency: 'BRL', items: itemVenda() },
               { value: precoVenda(), currency: 'BRL', content_ids: ['escala-certa-ilimitado'], content_type: 'product' }, `compra-${pid}`);
           }
+          // voltou em outro navegador (sem a cópia local): traz a escala guardada na conta
+          if (!estado.res || !estado.res.ok) {
+            try {
+              const s = await api('GET', '/api/escala');
+              if (s.dados && s.dados.res) { estado.liberado = true; restaurar(s.dados); }
+            } catch (_) { /* sem escala guardada: a próxima que montar já sai liberada */ }
+          }
           liberarNaTela();
+          irParaEscala();
           return;
         }
         if (r.status === 'recusado') {

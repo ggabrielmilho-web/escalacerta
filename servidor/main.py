@@ -8,7 +8,7 @@ Rotas:
   POST /api/pedido                cria a cobrança (Checkout Pro) para a conta logada
   GET  /api/pedido/{id}           situação do pedido; pago → acesso ilimitado
   POST /api/reembolso             o cliente cancela a compra em até 7 dias: estorno no Mercado Pago e sai o acesso
-  GET|PUT /api/escala             a escala salva da conta (para voltar e usar de novo)
+  GET|PUT /api/escala             a escala salva da conta: guardar com qualquer conta, ler só com acesso pago
   POST /webhook/mercadopago       aviso do Mercado Pago (o pagamento é conferido de novo na API)
   GET  /                          o site (só a pasta do site, nunca a raiz do projeto)
 """
@@ -288,7 +288,10 @@ def ler_escala(request: Request):
 
 @app.put("/api/escala")
 async def salvar_escala(request: Request):
-    u = exige_acesso(request)
+    # quem já deu o e-mail (tem conta) tem a escala guardada, pagando ou não: ela aparece na volta do pagamento
+    # em qualquer navegador (o do Instagram não é o mesmo da volta do Mercado Pago) e em outro aparelho.
+    # Ler continua só com o acesso pago.
+    u = usuario_logado(request)
     corpo = await request.body()
     if len(corpo) > ESCALA_MAX_BYTES:
         raise HTTPException(413, "Escala grande demais para salvar.")
