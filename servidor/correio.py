@@ -34,10 +34,22 @@ def _botao(rotulo, url):
             '</td></tr></table>')
 
 
-def _html(texto, codigo=None, minutos=None, botao=None):
+def _destaque(titulo, de, por, rodape):
+    """A caixa do preço especial: o desconto não pode se perder no meio do texto."""
+    return ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;'
+            'background:#e3efeb;border:2px solid #0e5f52;border-radius:12px"><tr><td style="padding:18px 16px;text-align:center">'
+            f'<div style="font:bold 12px/1.3 {FONTE};letter-spacing:2px;color:#0e5f52">{html.escape(titulo)}</div>'
+            f'<div style="margin:12px 0 8px;font:18px/1 {FONTE};color:#56655e"><s>{html.escape(de)}</s>&nbsp;&nbsp;'
+            f'<span style="font:bold 36px/1 {FONTE};color:#17231e">{html.escape(por)}</span></div>'
+            f'<div style="font:15px/1.4 {FONTE};color:#17231e">{html.escape(rodape)}</div>'
+            '</td></tr></table>')
+
+
+def _html(texto, codigo=None, minutos=None, botao=None, destaque=None):
     """O e-mail com a cara do site. Só tabela e estilo na linha: é o que Gmail, Outlook e celular respeitam.
     Com `codigo`, usa o modelo do código de entrar, com o número grande numa caixa, fácil de ler e de copiar;
-    sem ele, cada linha do texto vira um parágrafo, e a linha "[botao]" vira o botão de `botao` (rótulo, endereço)."""
+    sem ele, cada linha do texto vira um parágrafo; a linha "[botao]" vira o botão de `botao` (rótulo, endereço) e a
+    linha "[destaque]" vira a caixa de preço de `destaque` (título, preço de, preço por, rodapé)."""
     site = config.BASE_URL
     if codigo:
         miolo = (
@@ -49,7 +61,8 @@ def _html(texto, codigo=None, minutos=None, botao=None):
             + _p("Se não foi você que pediu, pode ignorar este e-mail: ninguém entra na sua conta sem este código.", 14, "#56655e")
         )
     else:
-        miolo = "".join(_botao(*botao) if botao and linha == "[botao]" else _p(linha)
+        miolo = "".join(_botao(*botao) if botao and linha == "[botao]" else
+                        _destaque(*destaque) if destaque and linha == "[destaque]" else _p(linha)
                         for linha in texto.split("\n") if linha.strip())
     return (
         '<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#f3f5f1">'
@@ -68,7 +81,7 @@ def _html(texto, codigo=None, minutos=None, botao=None):
     )
 
 
-def enviar(para, assunto, texto, codigo=None, minutos=None, botao=None):
+def enviar(para, assunto, texto, codigo=None, minutos=None, botao=None, destaque=None):
     if not config.RESEND_API_KEY:
         if config.EM_PRODUCAO:
             # nunca escrever o código no log de produção: quem lê o log tomaria a conta
@@ -76,9 +89,11 @@ def enviar(para, assunto, texto, codigo=None, minutos=None, botao=None):
         else:
             logger.warning("Resend não configurado (desenvolvimento): para %s: %s", para, texto)
         return
-    corpo_html = _html(texto, codigo, minutos, botao)
+    corpo_html = _html(texto, codigo, minutos, botao, destaque)
     if botao:
         texto = texto.replace("[botao]", f"{botao[0]}: {botao[1]}")      # a versão só texto leva o endereço por extenso
+    if destaque:
+        texto = texto.replace("[destaque]", f"{destaque[0]}: de {destaque[1]} por {destaque[2]}, {destaque[3]}")
     dados = {"from": config.EMAIL_REMETENTE, "to": [para], "subject": assunto, "text": texto, "html": corpo_html}
     if config.EMAIL_RESPOSTA:
         dados["reply_to"] = config.EMAIL_RESPOSTA

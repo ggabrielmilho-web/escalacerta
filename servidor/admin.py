@@ -98,20 +98,24 @@ def _reais(v):
 
 
 def texto_oferta(valor, ate, link):
-    """O e-mail: fala da escala que a própria pessoa montou (não é propaganda geral) e avisa que é o único."""
+    """O e-mail: fala da escala que a própria pessoa montou (não é propaganda geral) e avisa que é o único.
+    O preço vai numa caixa própria ([destaque]): no meio do parágrafo, o desconto passava despercebido."""
     a = ate.astimezone(BRT)
     quando = f"{DIAS[a.weekday()]}, {a:%d/%m}, às {a.hour}h" + (f"{a:%M}" if a.minute else "")
-    assunto = f"Sua escala está guardada: R$ {_reais(valor)} até {DIAS[a.weekday()]}"
+    desconto = round(100 * (1 - valor / config.PRECO))
+    assunto = f"Oferta: sua escala por R$ {_reais(valor)} (era R$ {_reais(config.PRECO)}) até {DIAS[a.weekday()]}"
     texto = ("Olá!\n"
              "Você montou a escala de folgas 5x2 da sua equipe na Escala Certa, mas o pagamento não foi concluído. "
              "A escala continua guardada na sua conta.\n"
-             f"Para você terminar, deixamos a escala completa por R$ {_reais(valor)}, em vez de R$ {_reais(config.PRECO)}, "
-             f"até {quando}.\n"
+             "Para você terminar, separamos uma oferta:\n"
+             "[destaque]\n"
              "[botao]\n"
              "O botão já entra na sua conta e mostra o Pix. Pagou, a escala abre completa na hora: as folgas dos próximos "
              "12 meses, a imagem do mês para o WhatsApp da equipe e o Excel. E continua valendo a garantia de 7 dias.\n"
              "Este é o único e-mail que mandamos sobre isso. Se tiver alguma dúvida, é só responder.")
-    return assunto, texto, ("Abrir minha escala e pagar com Pix", link)
+    destaque = (f"OFERTA · {desconto}% DE DESCONTO", f"R$ {_reais(config.PRECO)}", f"R$ {_reais(valor)}",
+                f"a escala completa, até {quando}")
+    return assunto, texto, ("Abrir minha escala e pagar com Pix", link), destaque
 
 
 def oferta(valor, horas, emails, enviar=False, teste=False):
@@ -139,15 +143,16 @@ def oferta(valor, horas, emails, enviar=False, teste=False):
         print(f"  vai   {u['email']}")
         vao.append(u)
     ate = banco.agora() + timedelta(hours=horas)
-    assunto, texto, (rotulo, _) = texto_oferta(valor, ate, f"{config.BASE_URL}/oferta/...")
-    print(f"\nAssunto: {assunto}\n\n" + texto.replace("[botao]", f"[ {rotulo} ]").replace("\n", "\n\n"))
+    assunto, texto, (rotulo, _), (titulo, de, por, rodape) = texto_oferta(valor, ate, f"{config.BASE_URL}/oferta/...")
+    texto = texto.replace("[botao]", f"[ {rotulo} ]").replace("[destaque]", f"| {titulo} | {de} → {por} | {rodape} |")
+    print(f"\nAssunto: {assunto}\n\n" + texto.replace("\n", "\n\n"))
     if not enviar:
         print(f"\nNada foi enviado. Para mandar a {len(vao)} conta(s), repita com --enviar.")
         return
     for u in vao:
         token, ate = contas.criar_oferta(u["id"], valor, horas)
-        assunto, texto, botao = texto_oferta(valor, ate, f"{config.BASE_URL}/oferta/{token}")
-        correio.enviar(u["email"], assunto, texto, botao=botao)
+        assunto, texto, botao, destaque = texto_oferta(valor, ate, f"{config.BASE_URL}/oferta/{token}")
+        correio.enviar(u["email"], assunto, texto, botao=botao, destaque=destaque)
         with banco.conexao() as con:
             con.execute("UPDATE usuarios SET oferta_enviada = %s WHERE id = %s", (banco.agora(), u["id"]))
         banco.log(u["id"], u["email"], "admin", f"oferta:{valor}")
