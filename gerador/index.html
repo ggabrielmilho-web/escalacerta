@@ -1904,6 +1904,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         avisoPag('Sua conta já tem acesso ilimitado.', 'ok');
         return;
       }
+      // o Mercado Pago não gerou o Pix: segue pelo Checkout Pro (Pix ou cartão lá) em vez de perder a venda
+      if (forma === 'pix' && e.status === 502) { comprar('cartao'); return; }
       avisoPag(e.message, 'erro');
     }
   }
