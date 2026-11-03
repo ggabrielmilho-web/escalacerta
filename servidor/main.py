@@ -7,6 +7,7 @@ Rotas:
   GET  /api/eu                    quem está logado e até quando vai o acesso
   POST /api/pedido                cria a cobrança da conta logada: {"forma": "pix"} devolve o código Pix; cartão → Checkout Pro
   GET  /api/pedido/{id}           situação do pedido; pago → acesso ilimitado
+  GET  /oferta/{link}             o botão do e-mail de preço especial (admin.py oferta): entra na conta e abre o Pix
   POST /api/reembolso             o cliente cancela a compra em até 7 dias: estorno no Mercado Pago e sai o acesso
   GET|PUT /api/escala             a escala salva da conta: guardar com qualquer conta, ler só com acesso pago
   POST /webhook/mercadopago       aviso do Mercado Pago (o pagamento é conferido de novo na API)
@@ -21,7 +22,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
@@ -135,11 +136,12 @@ class Forma(BaseModel):
     forma: str = "cartao"
 
 
-def pix_em_aberto(uid):
-    """O Pix ainda válido que a pessoa já gerou: tocar de novo mostra o mesmo código, nunca um segundo Pix."""
+def pix_em_aberto(uid, valor):
+    """O Pix ainda válido que a pessoa já gerou: tocar de novo mostra o mesmo código, nunca um segundo Pix.
+    Só o do mesmo valor: quem recebeu o preço especial não pode cair no Pix de R$ 37 gerado antes."""
     with banco.conexao() as con:
         p = con.execute("SELECT id, pix FROM pedidos WHERE usuario_id = %s AND forma = 'pix' AND pix IS NOT NULL "
-                        "AND status IN ('aguardando', 'pendente') ORDER BY criado DESC LIMIT 1", (uid,)).fetchone()
+                        "AND status IN ('aguardando', 'pendente') AND valor = %s ORDER BY criado DESC LIMIT 1", (uid, valor)).fetchone()
     if not p:
         return None
     pix = json.loads(p["pix"])
@@ -156,19 +158,20 @@ def criar_pedido(request: Request, dados: Optional[Forma] = None):
     if contas.publico(u)["ativo"]:
         raise HTTPException(409, "Sua conta já tem acesso ilimitado.")      # não cobrar duas vezes
     pix = dados is not None and dados.forma == "pix"
-    if pix and (aberto := pix_em_aberto(u["id"])):
+    valor = contas.preco(u)
+    if pix and (aberto := pix_em_aberto(u["id"], valor)):
         return aberto
     pid = secrets.token_hex(8)
     meta.limpar_antigos()
     with banco.conexao() as con:
         con.execute("INSERT INTO pedidos (id, usuario_id, valor, criado, rastreio, forma) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (pid, u["id"], config.PRECO, banco.agora(), meta.rastreio_do_pedido(request, ip_de(request)),
+                    (pid, u["id"], valor, banco.agora(), meta.rastreio_do_pedido(request, ip_de(request)),
                      "pix" if pix else "cartao"))
     try:
         if pix:
-            p = mp.criar_pix(pid, u["email"])
+            p = mp.criar_pix(pid, u["email"], valor)
         else:
-            pref_id, url = mp.criar_preferencia(pid, u["email"])
+            pref_id, url = mp.criar_preferencia(pid, u["email"], valor)
     except Exception:
         logger.exception("Erro ao criar cobrança do pedido %s", pid)
         raise HTTPException(502, "Não consegui falar com o Mercado Pago. Tente de novo em instantes.")
@@ -203,12 +206,23 @@ def aprovar(pid, payment_id):
     banco.log(p["usuario_id"], None, None, f"pago:{pid}")
     logger.info("Pedido %s aprovado", pid)
     avisar_compra(p["email"], p["valor"], pid)
+    avisar_dono(f"Venda: R$ {reais(p['valor'])}", f"Pedido {pid} aprovado.\nConta: {p['email']}")
     meta.avisar_compra_depois(pid)
+
+
+def reais(valor):
+    return f"{float(valor):.2f}".replace(".", ",")
+
+
+def avisar_dono(assunto, texto):
+    """Venda e reembolso chegam no e-mail do dono: o cliente cancela sozinho na conta e, sem isto, ninguém fica sabendo."""
+    if config.EMAIL_DONO:
+        correio.enviar(config.EMAIL_DONO, f"Escala Certa · {assunto}", texto)
 
 
 def avisar_compra(email, valor, pid):
     """O recibo da compra, que também ensina a entrar em outro aparelho (sem senha, pelo código no e-mail)."""
-    valor = f"{float(valor):.2f}".replace(".", ",")
+    valor = reais(valor)
     correio.enviar(email, "Compra confirmada: sua Escala Certa está liberada",
                    "Olá!\n"
                    f"Recebemos o seu pagamento de R$ {valor} (pedido {pid}). O seu acesso à Escala Certa está liberado, "
@@ -236,7 +250,7 @@ def ver_pedido(pid: str, request: Request):
             with banco.conexao() as con:
                 con.execute("UPDATE pedidos SET status = %s WHERE id = %s AND status IN ('aguardando', 'pendente', 'recusado')",
                             (status, pid))
-    return {"status": status, **contas.publico(contas.buscar(u["id"]))}
+    return {"status": status, "valor": float(p["valor"]), **contas.publico(contas.buscar(u["id"]))}
 
 
 def pedido_reembolsavel(uid):
@@ -280,6 +294,8 @@ def pedir_reembolso(request: Request):
     contas.revogar_acesso(u["id"])
     banco.log(u["id"], u["email"], ip_de(request), f"reembolso:{p['id']}")
     logger.info("Pedido %s reembolsado a pedido do cliente", p["id"])
+    avisar_dono(f"Reembolso: R$ {reais(p['valor'])}", f"O cliente cancelou o pedido {p['id']} pela conta e o estorno "
+                f"saiu no Mercado Pago.\nConta: {u['email']}")
     return {"ok": True, "valor": float(p["valor"]), "pedido": p["id"], **contas.publico(contas.buscar(u["id"]))}
 
 
@@ -302,6 +318,18 @@ async def aviso_mercado_pago(request: Request):
     if pag.get("status") == "approved":
         aprovar(ref[len(mp.REF):], payment_id)
     return JSONResponse({"status": "ok"})
+
+
+@app.get("/oferta/{link}")
+def abrir_oferta(link: str, request: Request):
+    """O botão do e-mail de preço especial: entra na conta sem pedir código e a página já abre o Pix.
+    Vencido (ou link trocado por um novo), vai para o site sem entrar, e a página avisa."""
+    u = contas.conta_da_oferta(link)
+    if not u:
+        return RedirectResponse("/?oferta=vencida", 302)
+    iniciar_sessao(request, u)
+    banco.log(u["id"], u["email"], ip_de(request), "entrou_pelo_email_da_oferta")
+    return RedirectResponse("/?oferta=1", 302)
 
 
 # ---------------- escala salva ----------------

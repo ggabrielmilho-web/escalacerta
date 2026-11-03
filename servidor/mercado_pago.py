@@ -18,8 +18,8 @@ PIX_HORAS = 23                       # validade do código Pix (a mesma do Check
 sdk = mercadopago.SDK(config.MP_ACCESS_TOKEN)
 
 
-def criar_preferencia(pedido_id, email):
-    """Cria a cobrança e devolve (preference_id, url do checkout) ou levanta RuntimeError."""
+def criar_preferencia(pedido_id, email, valor):
+    """Cria a cobrança e devolve (preference_id, url do checkout) ou levanta RuntimeError. `valor`: o preço da conta."""
     volta = f"{config.BASE_URL}/?pedido={pedido_id}"
     dados = {
         "items": [{
@@ -27,7 +27,7 @@ def criar_preferencia(pedido_id, email):
             "title": "Escala Certa: escala completa (acesso ilimitado)",
             "quantity": 1,
             "currency_id": "BRL",
-            "unit_price": config.PRECO,
+            "unit_price": float(valor),
         }],
         "payer": {"email": email},
         "external_reference": REF + pedido_id,
@@ -50,7 +50,7 @@ def criar_preferencia(pedido_id, email):
     return pref["id"], pref["init_point"]
 
 
-def criar_pix(pedido_id, email):
+def criar_pix(pedido_id, email, valor):
     """Gera o Pix do pedido sem sair do site. Devolve {id, codigo, qr, expira} ou levanta RuntimeError.
 
     No Checkout Pro a pessoa escolhe entre pagar com a conta do Mercado Pago ou sem conta; quem toca na conta cai
@@ -59,7 +59,7 @@ def criar_pix(pedido_id, email):
     """
     expira = datetime.now(timezone.utc) + timedelta(hours=PIX_HORAS)
     dados = {
-        "transaction_amount": config.PRECO,
+        "transaction_amount": float(valor),
         "description": "Escala Certa: escala completa (acesso ilimitado)",
         "payment_method_id": "pix",
         "payer": {"email": email},

@@ -47,7 +47,17 @@ def nova_chave_sessao():
 
 def publico(u):
     """O que a página pode saber da conta. O acesso pago é ilimitado: não tem data de fim."""
-    return {"email": u["email"], "ativo": u["liberado_em"] is not None}
+    d = {"email": u["email"], "ativo": u["liberado_em"] is not None, "preco": preco(u)}
+    if d["preco"] != config.PRECO:
+        d["oferta_ate"] = banco.iso(u["oferta_ate"])
+    return d
+
+
+def preco(u):
+    """O preço desta conta: o especial do e-mail enquanto vale; depois dele, o do site."""
+    if u.get("oferta_preco") is not None and u.get("oferta_ate") and u["oferta_ate"] > banco.agora():
+        return float(u["oferta_preco"])
+    return config.PRECO
 
 
 def buscar(usuario_id):
@@ -180,3 +190,28 @@ def revogar_acesso(uid):
     """Tira o acesso (estorno ou arrependimento). A conta e a escala salva continuam."""
     with banco.conexao() as con:
         con.execute("UPDATE usuarios SET liberado_em = NULL WHERE id = %s", (uid,))
+
+
+# ---------------- preço especial por e-mail ----------------
+def _hash_link(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def criar_oferta(uid, valor, horas):
+    """Preço especial para a conta e o link do e-mail. Devolve (token, vale_ate). Um link novo invalida o anterior."""
+    token = secrets.token_urlsafe(32)
+    ate = banco.agora() + timedelta(hours=horas)
+    with banco.conexao() as con:
+        con.execute("UPDATE usuarios SET oferta_preco = %s, oferta_ate = %s, oferta_link = %s WHERE id = %s",
+                    (valor, ate, _hash_link(token), uid))
+    return token, ate
+
+
+def conta_da_oferta(token):
+    """A conta do link do e-mail, enquanto o preço especial vale. O link é tão secreto quanto o código de entrar
+    (só chega no e-mail da conta) e só o hash fica no banco: quem lê o banco não entra em ninguém."""
+    if not token or len(token) > 100:
+        return None
+    with banco.conexao() as con:
+        return con.execute("SELECT * FROM usuarios WHERE oferta_link = %s AND oferta_ate > %s",
+                           (_hash_link(token), banco.agora())).fetchone()

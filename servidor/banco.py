@@ -76,6 +76,13 @@ def criar_tabelas():
             -- pix: o código e o QR, para mostrar o mesmo Pix se a pessoa tocar de novo em vez de gerar outro
             ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS forma TEXT;
             ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS pix TEXT;
+            -- preço especial da conta (admin.py oferta: o e-mail único para quem montou a escala e não pagou).
+            -- Vale até oferta_ate; oferta_link é só o hash do link do e-mail, que entra na conta sem código;
+            -- oferta_enviada impede um segundo e-mail para a mesma pessoa
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS oferta_preco NUMERIC(10, 2);
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS oferta_ate TIMESTAMPTZ;
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS oferta_link TEXT;
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS oferta_enviada TIMESTAMPTZ;
             CREATE TABLE IF NOT EXISTS escalas (
                 usuario_id BIGINT PRIMARY KEY REFERENCES usuarios(id),
                 dados TEXT NOT NULL,                 -- o JSON da página, guardado como veio

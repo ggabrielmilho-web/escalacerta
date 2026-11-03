@@ -170,6 +170,8 @@ table.fixa { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .preco { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .preco strong { font-family: var(--display); font-size: 30px; font-weight: 800; }
 .preco span { font-size: 13px; color: var(--tinta-2); flex-basis: 100%; }
+.preco s { font-size: 17px; font-weight: 600; color: var(--tinta-2); }
+.preco .oferta { color: var(--acento); font-weight: 700; }
 .garantia { margin: 0; font-size: 13.5px; color: var(--tinta-2); background: var(--acento-suave); border-radius: 8px; padding: 10px 12px; }
 .garantia b { color: var(--tinta); }
 .garantia a { color: var(--acento); }
@@ -571,10 +573,11 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       </ul>
       <div class="compra">
         <div class="preco"><strong>R$ 37</strong><b class="ilimitado">pagamento único</b>
+          <span class="oferta" id="preco-oferta" hidden></span>
           <span>sem mensalidade · acesso ilimitado: monte de novo quantas vezes quiser</span></div>
         <button type="button" class="botao principal" id="liberar">Liberar minha escala completa</button>
       </div>
-      <p class="garantia"><b>Garantia de 7 dias.</b> Não gostou? Você cancela na sua conta e recebe os R$ 37 de volta,
+      <p class="garantia"><b>Garantia de 7 dias.</b> Não gostou? Você cancela na sua conta e recebe os R$ <span id="garantia-valor">37</span> de volta,
         sem precisar explicar. <a href="#duvidas">Dúvidas frequentes</a></p>
       <p class="nota" id="nota-prototipo">Protótipo aberto direto do arquivo: o botão libera sem cobrar. Pelo site, aqui entra a conta e o pagamento.</p>
       <p class="nota" id="ja-comprei" hidden>Pix na hora, aqui mesmo, ou cartão. Pagamento processado pelo Mercado Pago. Já comprou?
@@ -806,6 +809,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     cartao: ['escolheu_cartao', null],      // trocou o Pix pelo cartão no Mercado Pago (só no GA4)
     imagemPrevia: ['previa_imagem', null],  // abriu a prévia da imagem do WhatsApp antes de pagar (só no GA4)
     imagemLiberar: ['liberar_pela_imagem', null], // tocou em Liberar dentro da prévia da imagem (só no GA4; o AddToCart sai do Liberar)
+    oferta: ['abriu_oferta', null],         // veio pelo botão do e-mail de preço especial e o Pix abriu (só no GA4)
     compra: ['purchase', 'Purchase'],
     reembolso: ['refund', null],            // só no GA4: a Meta não tem evento de estorno
   };
@@ -815,7 +819,20 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     try { window.gtag('event', g, ga || {}); } catch (_) { /* rastreio nunca derruba a página */ }
     if (m) try { eventID ? window.fbq('track', m, meta || {}, { eventID }) : window.fbq('track', m, meta || {}); } catch (_) { /* idem */ }
   }
-  const precoVenda = () => Number(($('liberar').closest('.compra')?.querySelector('.preco strong')?.textContent || '').replace(/\D/g, '')) || 37;
+  const PRECO_SITE = Number(($('liberar').closest('.compra')?.querySelector('.preco strong')?.textContent || '').replace(/\D/g, '')) || 37;
+  // quem recebeu o e-mail de preço especial paga o preço da conta, que o servidor manda junto com a conta
+  const precoVenda = () => (estado.eu && estado.eu.preco) || PRECO_SITE;
+  const reais = v => Number(v).toFixed(2).replace('.', ',').replace(/,00$/, '');
+  const emOferta = () => !!(estado.eu && estado.eu.oferta_ate && !estado.eu.ativo);
+  function mostrarPreco() {
+    if (!emOferta()) return;
+    const ate = new Date(estado.eu.oferta_ate).toLocaleString('pt-BR',
+      { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    document.querySelector('.compra .preco strong').innerHTML = `R$ ${reais(precoVenda())} <s>R$ ${reais(PRECO_SITE)}</s>`;
+    $('preco-oferta').textContent = `Preço especial para você até ${ate}`;
+    $('preco-oferta').hidden = false;
+    $('garantia-valor').textContent = reais(precoVenda());
+  }
   const itemVenda = () => [{ item_id: 'escala-certa-ilimitado', item_name: 'Escala Certa', price: precoVenda(), quantity: 1 }];
   let calculoRastreado = false;
   let calculosNaVisita = 0;
@@ -2011,8 +2028,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
             const marca = `escalaCerta.compra.${pid}`;
             let ja = false;
             try { ja = localStorage.getItem(marca) === '1'; localStorage.setItem(marca, '1'); } catch (_) { /* sem armazenamento */ }
-            if (!ja) rastreia('compra', { transaction_id: pid, value: precoVenda(), currency: 'BRL', items: itemVenda() },
-              { value: precoVenda(), currency: 'BRL', content_ids: ['escala-certa-ilimitado'], content_type: 'product' }, `compra-${pid}`);
+            const valor = r.valor || precoVenda();          // o do pedido: com preço especial, não é o do site
+            if (!ja) rastreia('compra', { transaction_id: pid, value: valor, currency: 'BRL', items: itemVenda() },
+              { value: valor, currency: 'BRL', content_ids: ['escala-certa-ilimitado'], content_type: 'product' }, `compra-${pid}`);
           }
           // voltou em outro navegador (sem a cópia local): traz a escala guardada na conta
           if (!estado.res || !estado.res.ok) {
@@ -2150,7 +2168,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const el = $('reembolso');
     if (!el || !estado.eu.reembolso_ate) return;
     const ate = new Date(estado.eu.reembolso_ate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    el.innerHTML = `<p><b>Garantia de 7 dias.</b> Não gostou? Até ${ate} você cancela a compra e recebe os R$ ${precoVenda()}
+    el.innerHTML = `<p><b>Garantia de 7 dias.</b> Não gostou? Até ${ate} você cancela a compra e recebe os R$ ${reais(precoVenda())}
       de volta: no Pix volta na hora; no cartão, o estorno aparece na fatura.</p>
       <button type="button" class="botao" data-reembolso>Cancelar e receber o dinheiro de volta</button>`;
     el.hidden = false;
@@ -2190,7 +2208,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       sub = `${estado.eu.email} · ` + (estado.eu.ativo ? 'acesso ilimitado' : 'sem acesso ativo');
     }
     if (nome === 'codigo') sub = `Mandamos para ${emailDigitado}. Ele vale por 15 minutos; confira também o spam.`;
-    if (nome === 'pix') sub = `R$ ${precoVenda()} · pagamento único · garantia de 7 dias`;
+    if (nome === 'pix') sub = emOferta()
+      ? `Preço especial: R$ ${reais(precoVenda())} em vez de R$ ${reais(PRECO_SITE)}. Sua escala está guardada e abre completa assim que o Pix cair.`
+      : `R$ ${reais(precoVenda())} · pagamento único · garantia de 7 dias`;
     $('dlg-sub').textContent = aviso || sub;
     $('dlg-corpo').innerHTML = typeof v.html === 'function' ? v.html() : v.html;
     $('dlg-erro').hidden = true;
@@ -2327,7 +2347,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       estado.eu = eu.logado ? eu : null;
     } catch (_) { estado.eu = null; }
     renderTopo();
-    const pid = new URLSearchParams(location.search).get('pedido');
+    mostrarPreco();
+    const params = new URLSearchParams(location.search);
+    // botão do e-mail de preço especial: o servidor já entrou na conta; o Pix abre com o preço dela e, pago,
+    // a escala guardada na conta volta completa (o mesmo caminho de quem paga em outro aparelho)
+    const oferta = params.get('oferta');
+    if (oferta) {
+      history.replaceState(null, '', location.pathname);
+      if (estado.eu && estado.eu.ativo) { depoisDeEntrar(); return; }
+      if (oferta === '1' && emOferta()) { rastreia('oferta'); comprar('pix'); return; }
+      avisoPag('Esse link de preço especial já venceu. Sua escala continua guardada: entre na sua conta para ver.', 'erro',
+        { texto: 'Entrar na minha conta', acao: () => abrirConta('entrar') });
+    }
+    const pid = params.get('pedido');
     if (pid) {
       if (estado.eu) voltaDoPagamento(pid);
       else abrirConta('entrar', () => voltaDoPagamento(pid));

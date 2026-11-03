@@ -216,7 +216,8 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 | `POST /api/entrar`, `POST /api/sair` | Entra com e-mail + código; sai |
 | `GET /api/eu` | Quem está logado e até quando vai o acesso |
 | `POST /api/pedido` | Cria a cobrança da conta logada (409 se a conta já tem acesso: não cobra duas vezes). `{"forma": "pix"}` devolve `{pedido, pix: {codigo, qr, expira}}` (o mesmo Pix se já houver um válido); cartão ou sem corpo devolve `{pedido, url}` do Checkout Pro |
-| `GET /api/pedido/{id}` | Situação; se pago, libera o acesso ilimitado (só o dono do pedido vê) |
+| `GET /api/pedido/{id}` | Situação e `valor` do pedido; se pago, libera o acesso ilimitado (só o dono do pedido vê) |
+| `GET /oferta/{link}` | O botão do e-mail de preço especial (`admin.py oferta`): entra na conta **sem código** e volta para `/?oferta=1`, onde a página abre o Pix com o preço da conta. Vencido ou trocado: `/?oferta=vencida`, sem entrar |
 | `POST /api/reembolso` | **Garantia de 7 dias** (CDC art. 49): o cliente cancela em "Minha conta"; estorno total na hora pelo Mercado Pago (`X-Idempotency-Key` por pedido), pedido vira `reembolsado` e o acesso sai. Uma vez por conta; depois, por e-mail. Se o MP recusar (sem saldo), o pedido volta a `aprovado` e a mensagem manda escrever. Aviso atrasado do MP nunca relibera pedido estornado. `GET /api/eu` traz `reembolso_ate` |
 | `GET`/`PUT /api/escala` | A escala salva da conta (até 5 MB). Guardar: qualquer conta, pagando ou não. Ler: só com acesso ativo |
 | `POST /webhook/mercadopago` | Aviso do Mercado Pago. O pagamento é sempre **consultado de novo** na API |
@@ -262,7 +263,9 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 
 ## 10. E-mail (Resend da CarvalhoIA)
 
-O código para entrar e o recibo "Compra confirmada" saem pelo **Resend**, com o domínio **carvalhoia.com, que já está verificado** (o mesmo do DanfeZap). O remetente padrão é `Escala Certa <nao-responda@carvalhoia.com>`, e `EMAIL_RESPOSTA` é opcional, para onde vão as respostas. Use uma **chave nova do Resend só para a Escala Certa**, com permissão só de envio. Não há disparo de WhatsApp, por decisão do produto.
+O código para entrar, o recibo "Compra confirmada", o aviso ao dono e o e-mail único de preço especial saem pelo **Resend**, com o domínio **carvalhoia.com, que já está verificado** (o mesmo do DanfeZap). O remetente padrão é `Escala Certa <nao-responda@carvalhoia.com>`, e `EMAIL_RESPOSTA` é opcional, para onde vão as respostas. Use uma **chave nova do Resend só para a Escala Certa**, com permissão só de envio. Não há disparo de WhatsApp, por decisão do produto.
+
+**Aviso ao dono** (`EMAIL_DONO`, padrão `gabriel@carvalhoia.com`; vazio desliga): um e-mail a cada venda e a cada reembolso. O reembolso sai pelo botão do próprio cliente com a nossa chave do Mercado Pago, e o Mercado Pago não avisa o vendedor de estorno que ele mesmo fez: sem este aviso, a venda de 02/11 foi cancelada 20 min depois e ninguém soube.
 
 ---
 
@@ -280,8 +283,9 @@ Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBX
 | Abriu a prévia da imagem do WhatsApp (antes de pagar) | `previa_imagem` | — |
 | Tocou em "Liberar para mandar à equipe" na prévia da imagem | `liberar_pela_imagem` (e depois o `clique_liberar`) | — |
 | Copiou o código Pix | `pix_copiado` | — |
+| Chegou pelo botão do e-mail de preço especial e o Pix abriu | `abriu_oferta` | — |
 | Trocou o Pix pelo cartão | `escolheu_cartao` | — |
-| Pagamento confirmado na página | `purchase` (id do pedido, R$ 37) | `Purchase` (`eventID` = `compra-<pedido>`) |
+| Pagamento confirmado na página | `purchase` (id do pedido, valor do pedido) | `Purchase` (`eventID` = `compra-<pedido>`) |
 
 A compra é contada **uma vez por pedido** (marca no navegador). Pela página, ela só é contada quando a pessoa vê a confirmação; quem paga e nunca mais abre o site não conta.
 
@@ -303,7 +307,11 @@ python admin.py revogar <email>   # tira o acesso (estorno ou arrependimento); a
 python admin.py sair <email>      # derruba a conta em todos os aparelhos (perdeu o celular logado)
 python admin.py apagar <email>    # pedido de exclusão (LGPD): apaga e-mail e escala salva; pede para digitar APAGAR
 python admin.py meta <pedido>     # manda à Meta a compra de um pedido aprovado que não chegou lá (até 7 dias)
+python admin.py oferta <preço> <horas> <email> [...]            # mostra quem recebe e o texto, sem mandar nada
+python admin.py oferta <preço> <horas> <email> [...] --enviar   # manda o e-mail único de preço especial
 ```
+
+**Oferta (e-mail único para quem montou a escala e não pagou).** Grava na conta `oferta_preco` e `oferta_ate`; o pedido, o Pix e o Checkout Pro passam a cobrar esse valor até vencer (`contas.preco`), e o Pix de R$ 37 que a pessoa largou não é reaproveitado. O botão do e-mail é `/oferta/<link>`: entra na conta sem código e a página abre o Pix; pago, a escala guardada na conta volta completa, como em outro aparelho. O banco guarda só o hash do link; um link novo invalida o anterior. Ficam de fora: quem já tem acesso, quem não tem escala salva, quem **já recebeu** (`oferta_enviada`: é um e-mail só, como promete a Política de Privacidade) e quem **pediu reembolso** (já levou a escala). `--teste` ignora as duas últimas, para as nossas contas. O texto fala da escala que a própria pessoa montou e diz que é o único e-mail; a base é legítimo interesse, e a Política de Privacidade (03/11) diz isso.
 Use para cortesia, para teste, para estorno feito fora do botão (o direito de arrependimento de 7 dias do CDC vale para compra pela internet; o `revogar` não devolve o dinheiro: estorne no painel do Mercado Pago) ou para quem perdeu o acesso ao e-mail. O `apagar` cumpre o que a Política de Privacidade promete: ficam só os pedidos (lei fiscal) e o registro de acesso (Marco Civil, 6 meses); a linha da conta fica sem e-mail, e o mesmo e-mail pode criar uma conta nova. Em produção, rode dentro do container: `docker exec -it <container> python admin.py …`. Quem perdeu o acesso ao e-mail: confira que é a pessoa, troque o e-mail da conta no banco e rode `sair`.
 
 ---
