@@ -382,6 +382,17 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 .campos .botao.principal { margin-top: 4px; }
 .links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 14px; margin-top: 12px; }
 .sugestao-email { margin: -4px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--aviso-fundo); font-size: 14px; }
+/* Pix na nossa página: no celular a pessoa copia o código e cola no app do banco; o QR é para quem paga com outro aparelho */
+.pix { display: flex; flex-direction: column; gap: 12px; }
+.pix .botao { white-space: normal; }
+.pix-passos { margin: 0; padding-left: 20px; font-size: 14px; color: var(--tinta-2); display: flex; flex-direction: column; gap: 4px; }
+.pix-codigo { width: 100%; resize: none; font: 12px/1.4 var(--mono); color: var(--tinta-2); background: var(--papel); border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px; word-break: break-all; }
+.pix-qr summary { cursor: pointer; font-size: 14px; font-weight: 700; color: var(--acento); }
+.pix-qr img { display: block; width: 200px; height: 200px; margin: 10px auto 0; padding: 8px; background: #fff; border-radius: 8px; image-rendering: pixelated; }
+.pix-status { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--aviso-fundo); color: var(--aviso); font-weight: 700; font-size: 14px; display: flex; gap: 10px; align-items: center; }
+.pix-ponto { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex: none; animation: pix-pulsa 1.4s ease-in-out infinite; }
+@keyframes pix-pulsa { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .pix-ponto { animation: none; } }
 
 .lado { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 700px) { .lado { grid-template-columns: minmax(0, 1fr); } }
@@ -782,6 +793,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     liberar: ['clique_liberar', 'AddToCart'],
     conta: ['sign_up', 'CompleteRegistration'],
     checkout: ['begin_checkout', 'InitiateCheckout'],
+    pixCopiado: ['pix_copiado', null],      // copiou o código Pix para colar no banco (só no GA4)
+    cartao: ['escolheu_cartao', null],      // trocou o Pix pelo cartão no Mercado Pago (só no GA4)
     compra: ['purchase', 'Purchase'],
     reembolso: ['refund', null],            // só no GA4: a Meta não tem evento de estorno
   };
@@ -1859,17 +1872,28 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     agendarSalvar(0);
   }
 
-  async function comprar() {
+  // Pix: o código aparece aqui mesmo e a escala libera sozinha. Cartão: Checkout Pro do Mercado Pago, como antes
+  async function comprar(forma = 'pix') {
     if (estado.eu && estado.eu.ativo) { liberarNaTela(); return; }
     const b = $('liberar');
-    b.disabled = true; b.textContent = 'Abrindo o pagamento…';
+    b.disabled = true; b.textContent = forma === 'pix' ? 'Gerando o Pix…' : 'Abrindo o pagamento…';
     try {
-      const r = await api('POST', '/api/pedido');
-      // a página sai para o Mercado Pago: guarda a escala para mostrar a mesma na volta. Aqui no navegador e na
-      // conta: a volta do Mercado Pago muitas vezes cai em outro navegador (o do Instagram não é o do celular)
+      const r = await api('POST', '/api/pedido', { forma });
+      // guarda a escala para mostrar a mesma depois do pagamento. Aqui no navegador e na conta: a volta do
+      // Mercado Pago muitas vezes cai em outro navegador, e o celular pode recarregar a página na volta do banco
       try { localStorage.setItem(CHAVE_PENDENTE, JSON.stringify({ pedido: r.pedido, snap: snapshot(), quando: Date.now() })); } catch (_) { /* sem armazenamento local */ }
       if (estado.res && estado.res.ok) { try { await api('PUT', '/api/escala', snapshot()); } catch (_) { /* a cópia local ainda serve */ } }
-      rastreia('checkout', { value: precoVenda(), currency: 'BRL', items: itemVenda() }, { value: precoVenda(), currency: 'BRL' });
+      // o mesmo Pix mostrado de novo não conta outra ida ao pagamento
+      const marca = `escalaCerta.checkout.${r.pedido}`;
+      let ja = false;
+      try { ja = localStorage.getItem(marca) === '1'; localStorage.setItem(marca, '1'); } catch (_) { /* sem armazenamento */ }
+      if (!ja) rastreia('checkout', { value: precoVenda(), currency: 'BRL', items: itemVenda(), payment_type: forma },
+        { value: precoVenda(), currency: 'BRL' });
+      if (r.pix) {
+        b.disabled = false; b.textContent = 'Liberar minha escala completa';
+        mostrarPix(r.pedido, r.pix);
+        return;
+      }
       if (RASTREIO) await espera(400);       // dá tempo de os avisos saírem antes de trocar de página
       location.href = r.url;
     } catch (e) {
@@ -1883,6 +1907,44 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       avisoPag(e.message, 'erro');
     }
   }
+  let pixAtual = null;          // o Pix aberto na janela: {pedido, codigo, qr, expira}
+  let pixEsperando = null;      // o pedido que está sendo conferido (continua mesmo com a janela fechada)
+  function mostrarPix(pid, pix) {
+    pixAtual = Object.assign({ pedido: pid }, pix);
+    abrirConta('pix');
+    if (pixEsperando !== pid) { pixEsperando = pid; aguardarPix(pid); }
+  }
+  // confere sozinho: a pessoa paga no app do banco e, na volta, já está liberado
+  async function aguardarPix(pid) {
+    const fim = Date.now() + 30 * 60 * 1000;
+    while (Date.now() < fim) {
+      await espera(3000);
+      if (pixEsperando !== pid) return;
+      if (document.hidden) continue;            // no app do banco: confere assim que a pessoa voltar
+      let r = null;
+      try { r = await api('GET', `/api/pedido/${encodeURIComponent(pid)}`); } catch (_) { continue; }
+      if (r && (r.status === 'aprovado' || r.ativo)) {
+        pixEsperando = null;
+        pixAtual = null;
+        if ($('dlg-conta').open) $('dlg-conta').close();
+        voltaDoPagamento(pid, 1);               // o mesmo caminho da volta do Mercado Pago: libera, mede e mostra a escala
+        return;
+      }
+    }
+    if (pixEsperando === pid) pixEsperando = null;
+  }
+  async function copiarPix(botao) {
+    const ta = $('dlg-corpo').querySelector('.pix-codigo');
+    let ok = false;
+    try { await navigator.clipboard.writeText(pixAtual.codigo); ok = true; } catch (_) {
+      // navegador do Instagram às vezes nega a área de transferência: copia selecionando o texto
+      try { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); ok = document.execCommand('copy'); } catch (_) { /* segue */ }
+    }
+    botao.textContent = ok ? 'Código copiado ✓' : 'Toque e segure o código abaixo para copiar';
+    rastreia('pixCopiado');
+    if (ok) setTimeout(() => { if (botao.isConnected) botao.textContent = 'Copiar código Pix'; }, 5000);
+  }
+
   // pagamento em andamento (o código Pix vale 23 h); passado um dia, esquece
   function pagamentoPendente() {
     let pend = null;
@@ -1939,15 +2001,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         }
         if (r.status === 'recusado') {
           avisoPag('O pagamento foi recusado. Tente de novo com outro cartão ou com Pix.', 'erro',
-            { texto: 'Tentar de novo', acao: comprar });
+            { texto: 'Tentar de novo', acao: () => comprar() });
           return;
         }
       }
       await espera(3000);
     }
-    avisoPag(tentativas < 40
-      ? 'Você tem um pagamento em aberto. Se já pagou o Pix, a confirmação chega em alguns segundos.'
-      : 'Ainda não recebemos a confirmação. No Pix pode levar alguns segundos.', 'espera',
+    if (tentativas < 40) {
+      // abriu o site de novo sem ter pago: o mesmo Pix continua valendo
+      avisoPag('Você tem um pagamento em aberto. Se já pagou o Pix, a confirmação chega em alguns segundos.', 'espera',
+        { texto: 'Ver o código Pix', acao: () => comprar('pix') });
+      return;
+    }
+    avisoPag('Ainda não recebemos a confirmação. No Pix pode levar alguns segundos.', 'espera',
       { texto: 'Verificar de novo', acao: () => voltaDoPagamento(pid) });
   }
 
@@ -2008,6 +2074,27 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       </form>
       <div class="links"><button type="button" class="botao-link" data-reenviar>Mandar outro código</button>
         <button type="button" class="botao-link" data-vista="entrar">Usar outro e-mail</button></div>`,
+    },
+    pix: {
+      titulo: 'Pague com Pix',
+      sub: '',
+      html: () => {
+        const qr = (pixAtual.qr || '').replace(/[^A-Za-z0-9+/=]/g, '');
+        return `<div class="pix">
+        <button type="button" class="botao principal" data-copiar-pix>Copiar código Pix</button>
+        <ol class="pix-passos">
+          <li>Abra o app do seu banco e escolha <b>Pix Copia e Cola</b>.</li>
+          <li>Cole o código e confirme o pagamento.</li>
+          <li>Volte para esta tela: a escala libera sozinha.</li>
+        </ol>
+        <textarea class="pix-codigo" readonly rows="3" aria-label="Código Pix">${esc(pixAtual.codigo)}</textarea>
+        ${qr ? `<details class="pix-qr"${window.innerWidth >= 700 ? ' open' : ''}>
+          <summary>Ler o QR Code com o app do banco</summary>
+          <img alt="QR Code do Pix" src="data:image/png;base64,${qr}"></details>` : ''}
+        <p class="pix-status" role="status"><span class="pix-ponto" aria-hidden="true"></span>Esperando o pagamento…</p>
+      </div>
+      <div class="links"><button type="button" class="botao-link" data-cartao>Prefere cartão? Pagar com cartão</button></div>`;
+      },
     },
     conta: {
       titulo: 'Minha conta',
@@ -2077,8 +2164,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       sub = `${estado.eu.email} · ` + (estado.eu.ativo ? 'acesso ilimitado' : 'sem acesso ativo');
     }
     if (nome === 'codigo') sub = `Mandamos para ${emailDigitado}. Ele vale por 15 minutos; confira também o spam.`;
+    if (nome === 'pix') sub = `R$ ${precoVenda()} · pagamento único · garantia de 7 dias`;
     $('dlg-sub').textContent = aviso || sub;
-    $('dlg-corpo').innerHTML = v.html;
+    $('dlg-corpo').innerHTML = typeof v.html === 'function' ? v.html() : v.html;
     $('dlg-erro').hidden = true;
     const email = $('dlg-corpo').querySelector('input[name="email"]');
     if (email && emailDigitado) email.value = emailDigitado;
@@ -2094,6 +2182,15 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     if (!d.open) d.showModal();
   }
   $('dlg-corpo').addEventListener('click', async ev => {
+    const copiar = ev.target.closest('[data-copiar-pix]');
+    if (copiar && pixAtual) { copiarPix(copiar); return; }
+    if (ev.target.closest('[data-cartao]')) {
+      rastreia('cartao');
+      pixAtual = null; pixEsperando = null;
+      $('dlg-conta').close();
+      comprar('cartao');
+      return;
+    }
     const vista = ev.target.closest('[data-vista]');
     if (vista) {
       const email = $('dlg-corpo').querySelector('input[name="email"]');
@@ -2125,6 +2222,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       try { await api('POST', '/api/sair'); } catch (_) { /* sai do mesmo jeito */ }
       location.href = location.pathname;
     }
+  });
+  // fechou a janela do Pix sem pagar: o código continua valendo e fica a um toque
+  $('dlg-conta').addEventListener('close', () => {
+    if (!pixAtual) return;
+    pixAtual = null;
+    avisoPag('Seu Pix continua valendo por algumas horas. Se já pagou, a escala libera em instantes.', 'espera',
+      { texto: 'Ver o código Pix', acao: () => comprar('pix') });
   });
   // mudou o e-mail depois da sugestão: confere de novo
   $('dlg-corpo').addEventListener('input', ev => {

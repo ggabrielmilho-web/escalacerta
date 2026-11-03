@@ -37,7 +37,7 @@ Escala/
 ├── servidor/                FastAPI + Postgres
 │   ├── main.py              rotas (contas, pedido, escala salva, aviso do Mercado Pago) + serve o site
 │   ├── contas.py            conta sem senha: cadastro na compra (só o e-mail) e entrar por código no e-mail
-│   ├── mercado_pago.py      Checkout Pro (API de Preferences) e consulta de pagamento
+│   ├── mercado_pago.py      Pix na página (API de Payments), Checkout Pro do cartão (Preferences) e consulta de pagamento
 │   ├── correio.py           e-mail pelo Resend (NÃO renomear para email.py: esconde o pacote do Python)
 │   ├── banco.py             pool de conexões (psycopg 3) e tabelas
 │   ├── config.py            lê o .env
@@ -215,7 +215,7 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 | `POST /api/codigo` | Manda o código de 6 números para entrar. A resposta é sempre igual, exista ou não a conta |
 | `POST /api/entrar`, `POST /api/sair` | Entra com e-mail + código; sai |
 | `GET /api/eu` | Quem está logado e até quando vai o acesso |
-| `POST /api/pedido` | Cria a cobrança no Checkout Pro para a conta logada (409 se a conta já tem acesso: não cobra duas vezes) |
+| `POST /api/pedido` | Cria a cobrança da conta logada (409 se a conta já tem acesso: não cobra duas vezes). `{"forma": "pix"}` devolve `{pedido, pix: {codigo, qr, expira}}` (o mesmo Pix se já houver um válido); cartão ou sem corpo devolve `{pedido, url}` do Checkout Pro |
 | `GET /api/pedido/{id}` | Situação; se pago, libera o acesso ilimitado (só o dono do pedido vê) |
 | `POST /api/reembolso` | **Garantia de 7 dias** (CDC art. 49): o cliente cancela em "Minha conta"; estorno total na hora pelo Mercado Pago (`X-Idempotency-Key` por pedido), pedido vira `reembolsado` e o acesso sai. Uma vez por conta; depois, por e-mail. Se o MP recusar (sem saldo), o pedido volta a `aprovado` e a mensagem manda escrever. Aviso atrasado do MP nunca relibera pedido estornado. `GET /api/eu` traz `reembolso_ate` |
 | `GET`/`PUT /api/escala` | A escala salva da conta (até 5 MB). Guardar: qualquer conta, pagando ou não. Ler: só com acesso ativo |
@@ -242,7 +242,11 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 
 ## 9. Pagamento (Mercado Pago)
 
-- **Checkout Pro, API de Preferences:** a pessoa vai para a página do Mercado Pago (Pix ou cartão) e volta para `/?pedido=<id>`.
+- **Pix na nossa página (desde 03/11), API de Payments (`mp.criar_pix`):** depois do e-mail, a janela mostra "Copiar código Pix", o código e o QR Code (aberto no computador, recolhido no celular). A pessoa paga no app do banco e **não sai do site**; a página confere o pedido a cada 3 s (mesmo com a janela fechada, por até 30 min) e libera sozinha.
+  - **Por quê:** no Checkout Pro a pessoa escolhe entre pagar **com a conta do Mercado Pago** ou sem conta. Quem toca na conta cai num login e desiste, e para nós aparece só "abriu e não pagou" (dois clientes entre 01 e 03/11 pararam em `aguardando`). No celular, a volta do Mercado Pago ainda caía em outro navegador.
+  - **Um Pix por vez:** tocar de novo (ou "Ver o código Pix" no aviso) mostra **o mesmo código** (`pedidos.pix`, `pix_em_aberto`). Faltando menos de 30 min para vencer, gera outro. A chave de idempotência é `escala-pix-<pedido>`. O Pix vence em 23 h.
+  - O pedido Pix nasce `pendente` (Pix gerado). `pedidos.forma` = `pix` ou `cartao` (NULL = antes de 03/11).
+- **Cartão: Checkout Pro, API de Preferences**, pelo link discreto "Prefere cartão? Pagar com cartão" na janela do Pix. A pessoa vai para a página do Mercado Pago e volta para `/?pedido=<id>`. `POST /api/pedido` sem corpo (página antiga em cache) também cai aqui. Se ninguém usar o cartão em 2–3 semanas, dá para tirar.
 - **Aplicação "Escala Certa" separada, na MESMA conta do DanfeZap.** O dinheiro cai no mesmo saldo, mas as **credenciais são próprias**, e **o DanfeZap não é tocado**. Cada cobrança diz para onde mandar o aviso, e o webhook do DanfeZap ignora pagamento que não é dele (`DanfeZap/app/main.py`, "não encontrado").
 - Em cada cobrança:
   - `external_reference = "escala-<id>"`, que separa as vendas nos relatórios;
@@ -272,7 +276,9 @@ Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBX
 | Fez o cálculo (1 vez por visita) | `calculo_feito` (equipe, faltam) | `ViewContent` |
 | Clicou em "Liberar" | `clique_liberar` | `AddToCart` |
 | Criou a conta | `sign_up` | `CompleteRegistration` |
-| Foi para o Mercado Pago | `begin_checkout` | `InitiateCheckout` |
+| Gerou o Pix ou foi para o cartão (1 vez por pedido) | `begin_checkout` (`payment_type` pix/cartao) | `InitiateCheckout` |
+| Copiou o código Pix | `pix_copiado` | — |
+| Trocou o Pix pelo cartão | `escolheu_cartao` | — |
 | Pagamento confirmado na página | `purchase` (id do pedido, R$ 37) | `Purchase` (`eventID` = `compra-<pedido>`) |
 
 A compra é contada **uma vez por pedido** (marca no navegador). Pela página, ela só é contada quando a pessoa vê a confirmação; quem paga e nunca mais abre o site não conta.

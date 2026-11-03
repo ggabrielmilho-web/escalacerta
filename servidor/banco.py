@@ -72,6 +72,10 @@ def criar_tabelas():
             -- cookies do Pixel, IP e navegador de quem pediu, para a Meta ligar a compra ao anúncio (meta.py).
             -- Some quando a compra é avisada ou em 2 dias
             ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS rastreio TEXT;
+            -- 'pix' (código na nossa página) ou 'cartao' (Checkout Pro); NULL = pedido de antes do Pix na página.
+            -- pix: o código e o QR, para mostrar o mesmo Pix se a pessoa tocar de novo em vez de gerar outro
+            ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS forma TEXT;
+            ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS pix TEXT;
             CREATE TABLE IF NOT EXISTS escalas (
                 usuario_id BIGINT PRIMARY KEY REFERENCES usuarios(id),
                 dados TEXT NOT NULL,                 -- o JSON da página, guardado como veio

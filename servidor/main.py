@@ -5,7 +5,7 @@ Rotas:
   POST /api/codigo                manda código de 6 números por e-mail para entrar (Resend da CarvalhoIA)
   POST /api/entrar | /api/sair    entra com e-mail + código; sai
   GET  /api/eu                    quem está logado e até quando vai o acesso
-  POST /api/pedido                cria a cobrança (Checkout Pro) para a conta logada
+  POST /api/pedido                cria a cobrança da conta logada: {"forma": "pix"} devolve o código Pix; cartão → Checkout Pro
   GET  /api/pedido/{id}           situação do pedido; pago → acesso ilimitado
   POST /api/reembolso             o cliente cancela a compra em até 7 dias: estorno no Mercado Pago e sai o acesso
   GET|PUT /api/escala             a escala salva da conta: guardar com qualquer conta, ler só com acesso pago
@@ -17,7 +17,8 @@ import json
 import logging
 import re
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -130,24 +131,56 @@ def eu(request: Request):
 
 
 # ---------------- pagamento ----------------
+class Forma(BaseModel):
+    forma: str = "cartao"
+
+
+def pix_em_aberto(uid):
+    """O Pix ainda válido que a pessoa já gerou: tocar de novo mostra o mesmo código, nunca um segundo Pix."""
+    with banco.conexao() as con:
+        p = con.execute("SELECT id, pix FROM pedidos WHERE usuario_id = %s AND forma = 'pix' AND pix IS NOT NULL "
+                        "AND status IN ('aguardando', 'pendente') ORDER BY criado DESC LIMIT 1", (uid,)).fetchone()
+    if not p:
+        return None
+    pix = json.loads(p["pix"])
+    # sobra pouco tempo: melhor um código novo do que um que vence enquanto a pessoa abre o banco
+    if datetime.fromisoformat(pix["expira"]) < banco.agora() + timedelta(minutes=30):
+        return None
+    return {"pedido": p["id"], "pix": {k: pix[k] for k in ("codigo", "qr", "expira")}}
+
+
 @app.post("/api/pedido")
-def criar_pedido(request: Request):
+def criar_pedido(request: Request, dados: Optional[Forma] = None):
+    """Pix: o código volta para a página mostrar. Cartão (e a página antiga, que não manda corpo): Checkout Pro."""
     u = usuario_logado(request)
     if contas.publico(u)["ativo"]:
         raise HTTPException(409, "Sua conta já tem acesso ilimitado.")      # não cobrar duas vezes
+    pix = dados is not None and dados.forma == "pix"
+    if pix and (aberto := pix_em_aberto(u["id"])):
+        return aberto
     pid = secrets.token_hex(8)
     meta.limpar_antigos()
     with banco.conexao() as con:
-        con.execute("INSERT INTO pedidos (id, usuario_id, valor, criado, rastreio) VALUES (%s, %s, %s, %s, %s)",
-                    (pid, u["id"], config.PRECO, banco.agora(), meta.rastreio_do_pedido(request, ip_de(request))))
+        con.execute("INSERT INTO pedidos (id, usuario_id, valor, criado, rastreio, forma) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (pid, u["id"], config.PRECO, banco.agora(), meta.rastreio_do_pedido(request, ip_de(request)),
+                     "pix" if pix else "cartao"))
     try:
-        pref_id, url = mp.criar_preferencia(pid, u["email"])
+        if pix:
+            p = mp.criar_pix(pid, u["email"])
+        else:
+            pref_id, url = mp.criar_preferencia(pid, u["email"])
     except Exception:
         logger.exception("Erro ao criar cobrança do pedido %s", pid)
         raise HTTPException(502, "Não consegui falar com o Mercado Pago. Tente de novo em instantes.")
     with banco.conexao() as con:
-        con.execute("UPDATE pedidos SET preference_id = %s WHERE id = %s", (pref_id, pid))
+        if pix:
+            # 'pendente' já na criação: o Pix existe e espera o pagamento (no cartão, 'aguardando' até escolher)
+            con.execute("UPDATE pedidos SET pix = %s, status = 'pendente' WHERE id = %s", (json.dumps(p), pid))
+        else:
+            con.execute("UPDATE pedidos SET preference_id = %s WHERE id = %s", (pref_id, pid))
     banco.log(u["id"], u["email"], ip_de(request), f"pedido:{pid}")
+    if pix:
+        return {"pedido": pid, "pix": {k: p[k] for k in ("codigo", "qr", "expira")}}
     return {"pedido": pid, "url": url}
 
 

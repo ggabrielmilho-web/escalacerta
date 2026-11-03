@@ -1,9 +1,10 @@
-"""Checkout Pro do Mercado Pago (API de Preferences): Pix e cartão numa página do Mercado Pago.
+"""Mercado Pago: Pix gerado direto na nossa página (API de Payments) e cartão no Checkout Pro (API de Preferences).
 
 O aviso de pagamento nunca é aceito como prova: o pagamento é sempre consultado de novo
 no Mercado Pago antes de liberar (mesmo cuidado do DanfeZap).
 """
 import logging
+from datetime import datetime, timedelta, timezone
 
 import mercadopago
 from mercadopago.config import RequestOptions
@@ -12,6 +13,7 @@ from config import config
 
 logger = logging.getLogger(__name__)
 REF = "escala-"                      # prefixo das vendas da Escala Certa na conta do Mercado Pago
+PIX_HORAS = 23                       # validade do código Pix (a mesma do Checkout Pro)
 
 sdk = mercadopago.SDK(config.MP_ACCESS_TOKEN)
 
@@ -46,6 +48,38 @@ def criar_preferencia(pedido_id, email):
         raise RuntimeError(f"Mercado Pago recusou a cobrança (HTTP {r.get('status')})")
     pref = r["response"]
     return pref["id"], pref["init_point"]
+
+
+def criar_pix(pedido_id, email):
+    """Gera o Pix do pedido sem sair do site. Devolve {id, codigo, qr, expira} ou levanta RuntimeError.
+
+    No Checkout Pro a pessoa escolhe entre pagar com a conta do Mercado Pago ou sem conta; quem toca na conta cai
+    num login e desiste. Aqui não tem escolha: o código e o QR aparecem na nossa página e ela paga no app do banco.
+    A chave de idempotência é o pedido: um clique repetido devolve o mesmo Pix, nunca dois.
+    """
+    expira = datetime.now(timezone.utc) + timedelta(hours=PIX_HORAS)
+    dados = {
+        "transaction_amount": config.PRECO,
+        "description": "Escala Certa: escala completa (acesso ilimitado)",
+        "payment_method_id": "pix",
+        "payer": {"email": email},
+        "external_reference": REF + pedido_id,
+        "date_of_expiration": expira.isoformat(timespec="milliseconds"),
+    }
+    if config.BASE_URL.startswith("https://"):
+        dados["notification_url"] = f"{config.BASE_URL}/webhook/mercadopago"
+    opcoes = RequestOptions(custom_headers={"x-idempotency-key": f"escala-pix-{pedido_id}"})
+    r = sdk.payment().create(dados, opcoes)
+    if r.get("status") not in (200, 201):
+        logger.error("Falha ao gerar o Pix do pedido %s: %s", pedido_id, r)
+        raise RuntimeError(f"Mercado Pago recusou o Pix (HTTP {r.get('status')})")
+    pag = r["response"]
+    tx = (pag.get("point_of_interaction") or {}).get("transaction_data") or {}
+    if not tx.get("qr_code"):
+        logger.error("Pix do pedido %s veio sem código: %s", pedido_id, pag.get("status_detail"))
+        raise RuntimeError("Mercado Pago não devolveu o código Pix")
+    return {"id": pag.get("id"), "codigo": tx["qr_code"], "qr": tx.get("qr_code_base64") or "",
+            "expira": expira.isoformat()}
 
 
 def pagamento_aprovado_do_pedido(pedido_id):
