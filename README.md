@@ -277,6 +277,8 @@ Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBX
 | Clicou em "Liberar" | `clique_liberar` | `AddToCart` |
 | Criou a conta | `sign_up` | `CompleteRegistration` |
 | Gerou o Pix ou foi para o cartão (1 vez por pedido) | `begin_checkout` (`payment_type` pix/cartao) | `InitiateCheckout` |
+| Abriu a prévia da imagem do WhatsApp (antes de pagar) | `previa_imagem` | — |
+| Tocou em "Liberar para mandar à equipe" na prévia da imagem | `liberar_pela_imagem` (e depois o `clique_liberar`) | — |
 | Copiou o código Pix | `pix_copiado` | — |
 | Trocou o Pix pelo cartão | `escolheu_cartao` | — |
 | Pagamento confirmado na página | `purchase` (id do pedido, R$ 37) | `Purchase` (`eventID` = `compra-<pedido>`) |
@@ -359,6 +361,9 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 - **A ferramenta é a própria página de entrada:** quem clica no anúncio cai direto na pergunta. Nada aparece antes do clique (só o "Como funciona"), e o preço só aparece depois de mostrar valor.
 - **O produto é a escala que se repete**, e não um período: o cliente informa só "começa em", e o calendário cobre 12 meses.
 - **A prévia grátis mostra só a primeira semana**, com os controles de mês e formato funcionando e o resto borrado, para provar que funciona sem entregar o produto.
+- **Resultado e prévia (03/11).** O título antes de pagar é a resposta ("Você vai precisar de 6 pessoas no 5x2" / "Sua equipe de 5 dá conta do 5x2"), não "Escala pronta": "pronta" fazia a pessoa achar que tinha acabado e ir embora com o número (40 cálculos por dia, 5 cliques em Liberar). A chamada faz a ponte para o que é pago: "a parte difícil vem agora: quem folga em cada dia, pelos próximos 12 meses". "A regra pede" virou "Vai precisar" (soava como "a lei exige 6 funcionários"). De onde vem a conta fica em "Por que falta gente?", que abre no clique. Sem preço nesse cartão: o preço fica no cartão de compra.
+- **Prévia da imagem do WhatsApp** ("Ver como chega no WhatsApp da equipe"): a imagem com a equipe da pessoa, só a primeira semana; o resto do mês sai em blocos cinza iguais (não revela folga) e não há enviar nem baixar, só "Liberar para mandar à equipe". Numa equipe pequena a imagem do mês é quase o produto inteiro.
+- **"T" no lugar do "·"** na tabela por pessoa e na imagem, bem claro, com a legenda "T = trabalha · F = folga": a tela, o Excel e a imagem usam as mesmas letras.
 - **Só 5x2 com revezamento.** 12x36 e plantões têm outra regra; ficam para depois, se vender.
 - **Turnos fixos, sem horário** (29/10/2026, decisão do usuário, a pedido de um líder de loja de varejo com 3 turnos: manhã, intermediário e noite): o líder escolhe de 2 a 5 turnos, o app diz quantos contratar **por turno** e o total, e a escala sai por turno. É o mesmo motor, um turno de cada vez. Horários de entrada e saída ficaram de fora para manter simples.
 - **Folgas emendadas ou separadas é uma escolha só, na escala** (29/10/2026, decisão do usuário): uma RH pediu folgas separadas; a maioria prefere emendadas. Evitar 3 folgas seguidas e "folga, 1 dia, folga" não é escolha: vale sempre.

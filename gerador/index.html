@@ -145,6 +145,10 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--acento);
 .dimensao p { margin: 0; flex: 1 1 260px; min-width: 0; }
 .dimensao strong { font-family: var(--display); font-size: 18px; }
 .dimensao .nota { flex-basis: 100%; }
+/* de onde vem a conta: à mão de quem quer entender, sem empurrar a chamada para fora da primeira tela */
+.porque { font-size: 13px; color: var(--tinta-2); }
+.porque summary { cursor: pointer; font-weight: 700; color: var(--acento); font-size: 14px; }
+.porque p { margin: 8px 0 0; }
 .problemas { margin: 0; padding-left: 18px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; }
 
 .cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -249,6 +253,7 @@ table.escala { border-collapse: separate; border-spacing: 0; font-size: 13.5px; 
 .v.F { background: var(--folga); color: var(--folga-tinta); font-weight: 700; }
 .v.X { background: var(--fechado); color: var(--tinta-2); }
 .v.T { color: var(--tinta-2); }
+.pessoa .v.T:not(.m1):not(.m2):not(.m4) { font-weight: 400; opacity: 0.45; }     /* T bem de leve: o olho vai para a folga */
 .pessoa .v { padding: 6px 0; }
 .editavel .v.T, .editavel .v.F { cursor: pointer; }
 .editavel .v.T:hover, .editavel .v.F:hover { outline: 2px solid var(--acento); outline-offset: -2px; }
@@ -347,6 +352,8 @@ input[type="text"] { padding: 7px 9px; border: 1px solid var(--linha); border-ra
 .proximo h3 { font-size: clamp(20px, 2.4vw, 24px); }
 .proximo #prox-texto { margin: 0; }
 .rolagem.previa { max-height: none; }
+.pv-imagem { align-self: flex-start; }
+@media (max-width: 600px) { .pv-imagem { align-self: stretch; } }
 .lista-ok { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .lista-ok li { display: flex; gap: 8px; align-items: baseline; }
 .lista-ok li::before { content: "✓"; color: var(--acento); font-weight: 700; }
@@ -554,6 +561,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       </div>
       <div class="quadro"><div class="rolagem previa" id="previa"></div></div>
       <p class="nota" id="pv-aviso"></p>
+      <button type="button" class="botao pv-imagem" id="pv-imagem">Ver como chega no WhatsApp da equipe</button>
       <p class="nota" id="prox-ciclo"></p>
       <ul class="lista-ok">
         <li>Folgas de cada pessoa, dia a dia, nos próximos 12 meses</li>
@@ -569,7 +577,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       <p class="garantia"><b>Garantia de 7 dias.</b> Não gostou? Você cancela na sua conta e recebe os R$ 37 de volta,
         sem precisar explicar. <a href="#duvidas">Dúvidas frequentes</a></p>
       <p class="nota" id="nota-prototipo">Protótipo aberto direto do arquivo: o botão libera sem cobrar. Pelo site, aqui entra a conta e o pagamento.</p>
-      <p class="nota" id="ja-comprei" hidden>Pix ou cartão, no ambiente seguro do Mercado Pago. Já comprou?
+      <p class="nota" id="ja-comprei" hidden>Pix na hora, aqui mesmo, ou cartão. Pagamento processado pelo Mercado Pago. Já comprou?
         <button type="button" class="botao-link" id="abrir-entrar">Entrar na minha conta</button></p>
     </div>
 
@@ -733,6 +741,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     <button type="button" class="botao principal" id="img-enviar">Enviar no WhatsApp</button>
     <button type="button" class="botao principal" id="img-copiar">Copiar imagem</button>
     <button type="button" class="botao" id="img-baixar">Baixar imagem</button>
+    <button type="button" class="botao principal" id="img-liberar" hidden>Liberar para mandar à equipe</button>
   </div>
   <p class="aviso-copia" id="img-aviso" role="status" hidden></p>
 </dialog>
@@ -795,6 +804,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     checkout: ['begin_checkout', 'InitiateCheckout'],
     pixCopiado: ['pix_copiado', null],      // copiou o código Pix para colar no banco (só no GA4)
     cartao: ['escolheu_cartao', null],      // trocou o Pix pelo cartão no Mercado Pago (só no GA4)
+    imagemPrevia: ['previa_imagem', null],  // abriu a prévia da imagem do WhatsApp antes de pagar (só no GA4)
+    imagemLiberar: ['liberar_pela_imagem', null], // tocou em Liberar dentro da prévia da imagem (só no GA4; o AddToCart sai do Liberar)
     compra: ['purchase', 'Purchase'],
     reembolso: ['refund', null],            // só no GA4: a Meta não tem evento de estorno
   };
@@ -1413,10 +1424,14 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const box = $('previa');
     box.className = 'rolagem previa' + (estado.visao === 'pessoa' ? ' pessoa' : '');
     box.innerHTML = htmlMes(mes, { borrado, maxLinhas: primeiroMes ? 14 : 10 });
-    $('pv-aviso').textContent = primeiroMes
+    $('pv-aviso').textContent = legenda(cfg) + (primeiroMes
       ? `Prévia grátis: a primeira semana. O resto de ${mes.rotulo.split(' ')[0]} e os outros meses abrem na versão completa.`
-      : `${mes.rotulo[0].toUpperCase() + mes.rotulo.slice(1)} abre na versão completa, com os feriados do mês marcados.`;
+      : `${mes.rotulo[0].toUpperCase() + mes.rotulo.slice(1)} abre na versão completa, com os feriados do mês marcados.`);
     sincronizarControles();
+  }
+  // as letras da tabela "uma linha por pessoa" (na "por dia" a célula já diz a palavra)
+  function legenda(cfg) {
+    return estado.visao === 'pessoa' ? `T = trabalha · F = folga${cfg.aberto.some(a => !a) ? ' · X = fechado' : ''}. ` : '';
   }
 
   function preencherMeses() {
@@ -1443,10 +1458,10 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       : `<span class="chip">${d} <b>fechado</b></span>`).join('');
   }
 
-  // placar: hoje · a regra pede · faltam (ou dá conta / sobra)
+  // placar: hoje · vai precisar · faltam (ou dá conta / sobra). "A regra pede" soava como "a lei exige 6 funcionários"
   function placar() {
     const eq = estado.equipe;
-    if (!eq) return { placar: '', notas: '' };
+    if (!eq) return { placar: '', faixa: '', detalhes: '' };
     const pede = eq.hoje + eq.contratadas - (eq.sobra || 0);
     const falta = n => (n === 1 ? 'Falta 1 pessoa' : `Faltam ${n} pessoas`);
     let terceiro;
@@ -1456,26 +1471,28 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     } else if (eq.sobra) terceiro = `<div class="da-conta"><span>Sobra</span><b>${eq.sobra}</b></div>`;
     else terceiro = '<div class="da-conta"><span>Resultado</span><b>Dá conta</b></div>';
     const pedeTxt = eq.contratadas && eq.faltaH !== null && eq.faltaH !== eq.faltaM ? `${eq.hoje + eq.faltaH} a ${pede}` : String(pede);
-    let nota = '';
-    if (eq.contratadas) {
-      nota = eq.faltaH !== null && eq.faltaH !== eq.faltaM
-        ? `${falta(eq.faltaH)} se contratar homens; ${eq.faltaM} se contratar mulheres. ` +
-          `A escala abaixo já inclui ${plural(eq.contratadas, 'contratação', 'contratações')}, montadas para valer qualquer que seja o sexo.`
-        : `A escala abaixo já inclui ${plural(eq.contratadas, 'contratação', 'contratações')} ("Contratação 1"…).`;
-      if (eq.motivo) nota += ` Por que falta gente${eq.motivo.turno ? ` no turno ${eq.motivo.turno}` : ''}: ${eq.motivo.texto}`;
-    } else if (eq.sobra) {
-      nota = `Dá para fazer com ${plural(pede, 'pessoa', 'pessoas')}. A sobra ajuda a cobrir férias e atestados.`;
-    }
+    // a faixa homem × mulher explica o "1 a 2" do placar: fica à vista. O resto (de onde vem a conta) abre no clique
+    const faixa = eq.contratadas && eq.faltaH !== null && eq.faltaH !== eq.faltaM
+      ? `${falta(eq.faltaH)} se contratar homens; ${eq.faltaM} se contratar mulheres.` : '';
+    const det = [];
     // mínimo ainda na operação de hoje: o resultado responde "quanto a regra nova custa para manter o que tenho"
-    const intocado = eq.minimoIntocado
-      ? '<div class="dimensao"><p>' + (eq.contratadas
-        ? `<b>Para manter a sua operação de hoje no 5x2, ${falta(eq.contratadas).toLowerCase()}.</b> `
-        : '<b>Sua equipe já dá conta da operação de hoje no 5x2.</b> ') +
-        'A conta parte do que você tem hoje no 6x1. Se a operação for diferente, ajuste os mínimos (item 2) e clique em Atualizar escala.</p></div>'
-      : '';
-    // as notas saem à parte: o renderStatus põe depois da chamada, senão o botão cai para fora da 1ª tela do celular
+    if (eq.minimoIntocado) {
+      det.push('A conta parte do que você tem hoje no 6x1: o mesmo mínimo de gente por dia. Se a operação for diferente, ' +
+        'ajuste os mínimos (item 2) e clique em Atualizar escala.');
+    }
+    if (eq.contratadas) {
+      if (eq.motivo) det.push(`Por que falta gente${eq.motivo.turno ? ` no turno ${eq.motivo.turno}` : ''}: ${eq.motivo.texto}`);
+      det.push(faixa
+        ? `A escala já inclui ${plural(eq.contratadas, 'contratação', 'contratações')}, montadas para valer qualquer que seja o sexo.`
+        : `A escala já inclui ${plural(eq.contratadas, 'contratação', 'contratações')} ("Contratação 1"…).`);
+      det.push('A conta não inclui férias e atestados: no mês em que alguém se afasta, a escala precisa de outro arranjo ou de um temporário.');
+    } else if (eq.sobra) {
+      det.push(`Dá para fazer com ${plural(pede, 'pessoa', 'pessoas')}. A sobra ajuda a cobrir férias e atestados.`);
+    }
+    const detalhes = det.length ? `<details class="porque"><summary>${eq.contratadas ? 'Por que falta gente?' : 'Como a conta foi feita'}</summary>` +
+      det.map(t => `<p>${esc(t)}</p>`).join('') + '</details>' : '';
     // com turnos, o total vem em cima e cada turno numa linha: é por turno que o líder contrata
-    const turnos = eq.porTurno ? `<table class="por-turno"><thead><tr><th>Turno</th><th>Hoje</th><th>A regra pede</th><th>Resultado</th></tr></thead><tbody>` +
+    const turnos = eq.porTurno ? `<table class="por-turno"><thead><tr><th>Turno</th><th>Hoje</th><th>Vai precisar</th><th>Resultado</th></tr></thead><tbody>` +
       eq.porTurno.map(x => {
         const r = x.semSaida ? '<b class="ruim">não fecha</b>'
           : x.contratadas ? `<b class="falta-txt">${x.contratadas === 1 ? 'Falta 1' : `Faltam ${x.contratadas}`}</b>`
@@ -1483,9 +1500,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         return `<tr><td>${esc(x.nome)}</td><td>${x.hoje}</td><td>${x.hoje + x.contratadas - (x.sobra || 0)}</td><td>${r}</td></tr>`;
       }).join('') + '</tbody></table>' : '';
     return {
-      placar: `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>A regra pede</span><b>${pedeTxt}</b></div>${terceiro}</div>` + turnos + intocado,
-      notas: (nota ? `<p class="nota">${esc(nota)}</p>` : '') +
-        (eq.contratadas ? '<p class="nota">A conta não inclui férias e atestados: no mês em que alguém se afasta, a escala precisa de outro arranjo ou de um temporário.</p>' : ''),
+      placar: `<div class="placar"><div><span>Hoje</span><b>${eq.hoje}</b></div><div><span>Vai precisar</span><b>${pedeTxt}</b></div>${terceiro}</div>` + turnos,
+      faixa: faixa ? `<p class="nota">${esc(faixa)}</p>` : '',
+      detalhes, pedeTxt,
     };
   }
 
@@ -1526,19 +1543,26 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const n = val.problemas.length, na = (val.avisos || []).length;
     if (n || na) el.classList.add('atencao');
     const contr = eq && eq.contratadas ? ` (${eq.hoje} de hoje + ${plural(eq.contratadas, 'contratação', 'contratações')})` : '';
-    const titulo = n ? `A escala tem ${plural(n, 'problema', 'problemas')}` : `Escala pronta para ${plural(N, 'pessoa', 'pessoas')}${contr}`;
+    const pl = placar();
+    // antes de pagar, o título é a resposta (quantas pessoas) e não "escala pronta": "pronta" fazia a pessoa achar
+    // que tinha acabado. Quem já pagou vê a escala dele, então o título fala da escala
+    const titulo = n ? `A escala tem ${plural(n, 'problema', 'problemas')}`
+      : estado.liberado || !eq ? `Escala pronta para ${plural(N, 'pessoa', 'pessoas')}${contr}`
+      : eq.contratadas ? `Você vai precisar de ${pl.pedeTxt} pessoas no 5x2`
+      : `Sua equipe de ${eq.hoje} dá conta do 5x2`;
     const repete = ciclosDosTurnos(res) ? 'Cada turno tem o próprio rodízio' : res.repete !== res.repeteMin ? 'Cada pessoa repete o próprio ciclo'
       : res.repete === 1 ? 'Toda semana é igual' : `Se repete a cada ${plural(res.repete, 'semana', 'semanas')}`;
     const sub = n
       ? 'Você trocou folgas no calendário. As células marcadas mostram onde ajustar.'
-      : `${repete} · começa em ${M.ddmm(res.ini)} · conferida nos 12 meses`;
+      : estado.liberado ? `${repete} · começa em ${M.ddmm(res.ini)} · conferida nos 12 meses`
+      : `Escala começa em ${M.ddmm(res.ini)} · conferida nos 12 meses`;
     // no celular a prévia e o preço ficam mais de uma tela abaixo: sem esta chamada, quem leu o número ia embora.
-    // Vem antes da lista de conferências para caber na primeira tela depois do cálculo.
-    const chamada = (!n && !estado.liberado ? `<div class="chamada"><p><b>Sua escala dos 12 meses já está montada${eq && eq.contratadas
-        ? `, contando ${eq.contratadas === 1 ? 'a contratação' : `as ${eq.contratadas} contratações`}` : ''}.</b> Veja como fica a primeira semana, de graça.</p>
+    // Ela é a ponte: o número responde o anúncio, e a parte difícil (quem folga quando) é o que a escala resolve
+    const chamada = (!n && !estado.liberado ? `<div class="chamada"><p><b>A parte difícil vem agora: quem folga em cada dia, pelos próximos 12 meses, sem quebrar a lei.</b>
+        Já montamos isso para a sua equipe${eq && eq.contratadas ? `, contando ${eq.contratadas === 1 ? 'a contratação' : `as ${eq.contratadas} contratações`}` : ''}.
+        Veja a primeira semana, de graça.</p>
         <button type="button" class="botao principal" id="ir-previa">Ver a minha escala ↓</button></div>` : '');
-    const pl = placar();
-    el.innerHTML = `<h2>${titulo}</h2>` + pl.placar + `<p>${sub}</p>` + chamada + pl.notas + `<ul class="checks">${checks.map(([ok, t]) =>
+    el.innerHTML = `<h2>${titulo}</h2>` + pl.placar + pl.faixa + `<p>${sub}</p>` + chamada + pl.detalhes + `<ul class="checks">${checks.map(([ok, t]) =>
       `<li class="${ok ? '' : 'nao'}">${esc(t)}</li>`).join('')}</ul>` +
       (cfg.turnos
         ? cfg.turnos.map((x, t) => `<div class="cobertura"><span class="rot">${esc(x.nome)}, trabalhando por dia:</span>${mediaPorDia(estado.val.coberturaTurno[t])}</div>`).join('')
@@ -1586,7 +1610,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     if (v === null) return `<td class="c ${extra}"><span class="v">—</span></td>`;
     const m = estado.val.marcas[e][k];
     const cls = ['v', v, m & 1 ? 'm1' : '', m & 2 ? 'm2' : '', m & 4 ? 'm4' : '', m & 8 ? 'm8' : ''].join(' ');
-    const txt = estado.visao === 'dia' ? PALAVRA[v] : v === 'T' ? '·' : v;
+    const txt = estado.visao === 'dia' ? PALAVRA[v] : v;          // T, F ou X: as mesmas letras do Excel
     return `<td class="c ${extra}"><span class="${cls}" data-e="${e}" data-k="${k}" title="${esc(estado.res.cfg.nomes[e])}: ${PALAVRA[v]}">${txt}</span></td>`;
   }
   // as pessoas na ordem de mostrar: um grupo só, ou um por turno (t = índice do turno; -1 sem turnos)
@@ -1669,10 +1693,10 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     rol.innerHTML = htmlMes(mes, { editavel: true });
     atualizarTrocas();
     const ferMes = res.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
-    $('feriados-mes').textContent = ferMes.length
+    $('feriados-mes').textContent = legenda(cfg) + (ferMes.length
       ? `Feriados em ${mes.rotulo}: ` + ferMes.map(f => `${M.ddmm(f.dia)} (${M.DIAS[M.diaSemana(f.dia)]}) ${f.nome}`).join(' · ') +
         '. Se abrir, pague em dobro ou dê outra folga.'
-      : `Nenhum feriado nacional em ${mes.rotulo}.`;
+      : `Nenhum feriado nacional em ${mes.rotulo}.`);
     // quem sai na imagem do WhatsApp: a equipe toda ou uma pessoa (mantém a escolha ao trocar de mês)
     const quem = $('img-quem'), atual = quem.value || 'todos';
     // com turnos, cada turno costuma ter o próprio grupo de WhatsApp: a imagem de um turno só vem logo depois da equipe toda
@@ -2338,7 +2362,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   // não borrar. Duas versões: a grade da equipe (o "recorte do mês") e o calendário de uma pessoa.
   const COR_IMG = { fundo: '#ffffff', tinta: '#17231e', tinta2: '#56655e', linha: '#d6ddd8', linhaForte: '#8c9b94',
     acento: '#0e5f52', folga: '#cdebd3', folgaTinta: '#1d6634', domingo: '#f5eedf', feriado: '#f9e1de',
-    feriadoTinta: '#a8231b', fechado: '#e5e8e6' };
+    feriadoTinta: '#a8231b', fechado: '#e5e8e6', tTinta: '#b3bdb8' };
   const FT = '"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif';
   function retArred(g, x, y, w, h, r) {
     g.beginPath();
@@ -2371,7 +2395,8 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 
   // a grade do mês: uma linha por pessoa, só a folga aparece
   // `linhas`: [{ e }] pessoas, ou [{ turno }] para a faixa com o nome do turno; `sub` vai no título
-  function imagemEquipe(res, cfg, mes, fer, ferMes, linhas, sub) {
+  // `ate` (prévia antes de pagar): depois desse dia as células saem cinza e iguais, sem revelar folga nenhuma
+  function imagemEquipe(res, cfg, mes, fer, ferMes, linhas, sub, ate) {
     const N = linhas.length, dias = [];
     for (let dia = mes.a; dia <= mes.b; dia++) dias.push(dia);
     const pad = 28, cw = 30, ch = 28, topo = 84, cab = 44, rod = 48;
@@ -2384,7 +2409,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     g.textAlign = 'left'; g.fillStyle = COR_IMG.tinta; g.font = `800 24px ${FT}`;
     g.fillText(`Escala de folgas · ${mes.rotulo}${sub ? ` · ${sub}` : ''}`, pad, 40);
     g.font = `600 13px ${FT}`; g.fillStyle = COR_IMG.tinta2;
-    g.fillText('F = folga · X = fechado · em branco = trabalha', pad, 62);
+    g.fillText('T = trabalha · F = folga · X = fechado' + (ate ? ' · prévia: só a primeira semana' : ''), pad, 62);
     dias.forEach((dia, i) => {               // coluna inteira de domingo e de feriado pintada
       if (!fer[dia] && M.diaSemana(dia) !== 6) return;
       g.fillStyle = fer[dia] ? COR_IMG.feriado : COR_IMG.domingo;
@@ -2410,9 +2435,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       g.textAlign = 'left'; g.font = `600 14px ${FT}`; g.fillStyle = COR_IMG.tinta;
       g.fillText(cortar(g, cfg.nomes[e], nw - 14), pad, y + ch / 2 + 5);
       dias.forEach((dia, i) => {
-        const v = estado.grade[e][dia - res.seg0];
-        if (v !== 'F' && v !== 'X') return;
         const x = x0 + i * cw;
+        if (ate && dia > ate) {
+          g.fillStyle = COR_IMG.fechado;
+          retArred(g, x + 3, y + 3, cw - 6, ch - 6, 5); g.fill();
+          return;
+        }
+        const v = estado.grade[e][dia - res.seg0];
+        if (v === 'T') {                     // T bem claro, como na tela: o olho vai para a folga
+          g.textAlign = 'center'; g.font = `600 12px ${FT}`; g.fillStyle = COR_IMG.tTinta;
+          g.fillText('T', x + cw / 2, y + ch / 2 + 5);
+          return;
+        }
+        if (v !== 'F' && v !== 'X') return;
         g.fillStyle = v === 'F' ? COR_IMG.folga : COR_IMG.fechado;
         retArred(g, x + 3, y + 3, cw - 6, ch - 6, 5); g.fill();
         g.textAlign = 'center'; g.font = `800 13px ${FT}`;
@@ -2428,6 +2463,18 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const x = x0 + (i + 1) * cw + 0.5;
       g.beginPath(); g.moveTo(x, y0); g.lineTo(x, yFim); g.stroke();
     });
+    const ocultos = ate ? dias.filter(d => d > ate).length : 0;
+    if (ocultos >= 4) {                      // o recado fica em cima da parte cinza
+      const xa = x0 + (dias.length - ocultos) * cw, larg = ocultos * cw, yc = y0 + cab + Math.min(N * ch, 6 * ch) / 2;
+      const txt = ['O mês completo', 'abre na versão completa'];
+      g.font = `800 14px ${FT}`;
+      const tw = Math.min(larg - 16, Math.max(...txt.map(t => g.measureText(t).width)) + 28);
+      g.fillStyle = 'rgba(255, 255, 255, 0.94)';
+      retArred(g, xa + (larg - tw) / 2, yc - 26, tw, 52, 10); g.fill();
+      g.strokeStyle = COR_IMG.acento; g.lineWidth = 1.5; g.stroke();
+      g.textAlign = 'center'; g.fillStyle = COR_IMG.acento;
+      txt.forEach((t, j) => g.fillText(cortar(g, t, tw - 12), xa + larg / 2, yc - 5 + j * 18));
+    }
     rodapeImagem(g, W, H, pad, ferMes);
     return cv;
   }
@@ -2485,14 +2532,57 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     const el = $('img-aviso');
     el.hidden = !msg; el.textContent = msg || '';
   }
+  async function fontesImagem() {
+    try {                                    // as fontes da página precisam estar carregadas antes de desenhar
+      await Promise.all([document.fonts.load(`800 26px ${FT}`), document.fonts.load(`800 14px ${FT}`), document.fonts.load(`600 14px ${FT}`)]);
+    } catch (_) { /* sem a fonte, o canvas usa a do sistema */ }
+  }
+  function mostrarImagem(blob, titulo) {
+    if (imgAtual.url) URL.revokeObjectURL(imgAtual.url);
+    imgAtual.url = URL.createObjectURL(blob);
+    $('img-titulo').textContent = titulo;
+    $('img-previa').src = imgAtual.url;
+    $('img-previa').closest('.img-quadro').classList.remove('zoom');
+    avisoImg('');
+    if (!$('dlg-imagem').open) $('dlg-imagem').showModal();
+  }
+  // antes de pagar: a imagem com a equipe da pessoa, só a primeira semana, sem enviar nem baixar.
+  // Mandar no WhatsApp é o que o líder imagina usando amanhã; o resto do mês fica cinza (a semana 1 já é grátis na tabela)
+  $('pv-imagem').addEventListener('click', async () => {
+    const res = estado.res;
+    if (!res || !res.ok) return;
+    const btn = $('pv-imagem');
+    btn.disabled = true;
+    try {
+      rastreia('imagemPrevia');
+      await fontesImagem();
+      const cfg = res.cfg, mes = estado.meses[0], fer = {};
+      res.feriados.forEach(f => { fer[f.dia] = f.nome; });
+      const ferMes = res.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
+      const linhas = gruposDaEscala(cfg).flatMap(gr => (cfg.turnos ? [{ turno: gr.nome }] : []).concat(gr.membros.map(e => ({ e }))));
+      const cv = imagemEquipe(res, cfg, mes, fer, ferMes, linhas, '', res.ini + 6);
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      imgAtual.blob = null; imgAtual.arq = null; imgAtual.mes = '';      // a prévia não se manda nem se baixa
+      ['img-enviar', 'img-copiar', 'img-baixar'].forEach(id => { $(id).hidden = true; });
+      $('img-liberar').hidden = false;
+      $('img-sub').textContent = 'Assim a escala chega no WhatsApp da equipe. Toque na imagem para ampliar.';
+      $('img-dica').textContent = 'Prévia: só a primeira semana. Na versão completa você manda qualquer mês, para a equipe toda ou para cada pessoa.';
+      mostrarImagem(blob, `Prévia da imagem de ${mes.rotulo}`);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  $('img-liberar').addEventListener('click', () => {
+    rastreia('imagemLiberar');
+    $('dlg-imagem').close();
+    $('liberar').click();
+  });
   $('imagem').addEventListener('click', async () => {
     const res = estado.res, cfg = res.cfg, mes = estado.meses[estado.mes], quem = $('img-quem').value;
     const btn = $('imagem');
     btn.disabled = true;
     try {
-      try {                                  // as fontes da página precisam estar carregadas antes de desenhar
-        await Promise.all([document.fonts.load(`800 26px ${FT}`), document.fonts.load(`800 14px ${FT}`), document.fonts.load(`600 14px ${FT}`)]);
-      } catch (_) { /* sem a fonte, o canvas usa a do sistema */ }
+      await fontesImagem();
       const fer = {};
       res.feriados.forEach(f => { fer[f.dia] = f.nome; });
       const ferMes = res.feriados.filter(f => f.dia >= mes.a && f.dia <= mes.b);
@@ -2502,17 +2592,13 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const cv = todos || turno >= 0 ? imagemEquipe(res, cfg, mes, fer, ferMes, linhas, turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : '')
         : imagemPessoa(res, cfg, mes, fer, ferMes, +quem);
       const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
-      if (imgAtual.url) URL.revokeObjectURL(imgAtual.url);
       imgAtual.blob = blob;
       const quemNome = todos ? 'equipe' : turno >= 0 ? `turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem];
       imgAtual.nome = `escala-${nomeArquivo(quemNome)}-${nomeArquivo(mes.rotulo)}.png`;
       imgAtual.arq = new File([blob], imgAtual.nome, { type: 'image/png' });
-      imgAtual.url = URL.createObjectURL(blob);
       imgAtual.mes = mes.rotulo;
-      $('img-titulo').textContent = `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem]}`);
-      $('img-previa').src = imgAtual.url;
-      $('img-previa').closest('.img-quadro').classList.remove('zoom');
       $('img-sub').textContent = 'Confira antes de mandar para a equipe. Toque na imagem para ampliar.';
+      $('img-baixar').hidden = false; $('img-liberar').hidden = true;
       // no celular, "Enviar" abre o Compartilhar (o WhatsApp aparece na lista); no computador, copiar e colar
       // no WhatsApp Web é o caminho mais curto (a janela de compartilhar do Windows só atrapalha)
       const podeEnviar = celular() && navigator.canShare && navigator.canShare({ files: [imgAtual.arq] });
@@ -2523,8 +2609,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         : podeCopiar ? 'Copie e cole com Ctrl+V na conversa do WhatsApp Web, ou baixe e anexe.'
         // navegador do Instagram/Facebook: sem Compartilhar, e o download às vezes falha; a imagem na tela sempre serve
         : 'Segure o dedo na imagem para salvar ou enviar. Se preferir, toque em Baixar imagem.';
-      avisoImg('');
-      if (!$('dlg-imagem').open) $('dlg-imagem').showModal();
+      mostrarImagem(blob, `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem]}`));
     } finally {
       btn.disabled = false;
     }
