@@ -114,6 +114,7 @@ Rode o teste sempre que mexer no `motor.js`.
 - com turnos, **tudo sai agrupado por turno**: no calendário "uma linha por pessoa", uma faixa com o nome do turno abre o bloco e a linha **Trabalhando** de cada turno fecha; em "uma linha por dia", cada turno é um bloco de colunas com o próprio Trabalhando; a escala fixa e o resumo têm a faixa do turno. A troca de um dia é conferida contra o mínimo **do turno**;
 - resumo por pessoa;
 - Excel;
+- **Horários da equipe e folha do dia** (opcional, 04/11): o cartão "Usar horários da equipe" vem **desmarcado**, e desmarcado nada muda. Marcado, cada pessoa ganha o horário de sempre (entrada, intervalo e saída, todos opcionais) e o botão **"Ver a folha do dia"** abre a folha de uma data (setas para o dia anterior e o próximo): quem trabalha, em ordem de entrada, com os horários, e quem folga embaixo, tirados da escala (trocou a folga, a folha acompanha). Mudar um horário na folha vale **só naquele dia** (quem cobre a folga de outro, o domingo mais curto), com "Voltar ao de sempre". Só aparecem as colunas que alguém usa no dia. A folha vira **imagem para o WhatsApp**, com o mesmo envio da imagem do mês. Fica salvo na escala da conta (`horarios`: `ligado`, `pessoa` por nome, `dia` por data e nome). **Nada disso entra no cálculo**, que continua em pessoas por dia; por isso o horário só existe na área paga;
 - **"Imagem do mês p/ WhatsApp"**: um PNG do mês que está na tela, da **equipe toda** (nomes × dias, só as folgas marcadas; com turnos, uma faixa por turno), de **um turno só** (para o grupo do turno) ou de **uma pessoa** (calendário dela com as folgas e o total de domingos de folga). No celular abre o "Compartilhar"; no computador baixa o arquivo para anexar no WhatsApp Web. **Não dispara mensagem**;
 - "Copiar texto", a versão em texto da mesma coisa.
 
@@ -285,6 +286,9 @@ Só no site publicado (https); local e protótipo não enviam nada. GA4 `G-E0VBX
 | Copiou o código Pix | `pix_copiado` | — |
 | Chegou pelo botão do e-mail de preço especial e o Pix abriu | `abriu_oferta` | — |
 | Trocou o Pix pelo cartão | `escolheu_cartao` | — |
+| Marcou "Usar horários da equipe" | `usou_horarios` | — |
+| Abriu a folha do dia | `abriu_folha_dia` | — |
+| Gerou a imagem da folha do dia | `imagem_folha_dia` | — |
 | Pagamento confirmado na página | `purchase` (id do pedido, valor do pedido) | `Purchase` (`eventID` = `compra-<pedido>`) |
 
 A compra é contada **uma vez por pedido** (marca no navegador). Pela página, ela só é contada quando a pessoa vê a confirmação; quem paga e nunca mais abre o site não conta.
@@ -374,6 +378,7 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 - **"T" no lugar do "·"** na tabela por pessoa e na imagem, bem claro, com a legenda "T = trabalha · F = folga": a tela, o Excel e a imagem usam as mesmas letras.
 - **Só 5x2 com revezamento.** 12x36 e plantões têm outra regra; ficam para depois, se vender.
 - **Turnos fixos, sem horário** (29/10/2026, decisão do usuário, a pedido de um líder de loja de varejo com 3 turnos: manhã, intermediário e noite): o líder escolhe de 2 a 5 turnos, o app diz quantos contratar **por turno** e o total, e a escala sai por turno. É o mesmo motor, um turno de cada vez. Horários de entrada e saída ficaram de fora para manter simples.
+- **Horários só como folha do dia** (04/11/2026, decisão do usuário, a pedido de um líder de loja que monta à mão uma folha por dia, com entrada e intervalo de cada vendedor e quem folga): metade da equipe dele tem horário fixo e a outra cobre a folga dos colegas. Ficou o horário de sempre por pessoa + ajuste por dia + imagem do dia, **só para quem pagou e só se marcar** (para ninguém achar que horário muda a quantidade de pessoas). Grade da semana, Excel e conta de horas ficaram de fora. Distribuir sozinho as pessoas nas "posições de horário" da loja fica para um **plano mensal**, se houver.
 - **Folgas emendadas ou separadas é uma escolha só, na escala** (29/10/2026, decisão do usuário): uma RH pediu folgas separadas; a maioria prefere emendadas. Evitar 3 folgas seguidas e "folga, 1 dia, folga" não é escolha: vale sempre.
 - **"Sua empresa se enquadra no art. 386?"** em vez de "tem mulher?": o dono sabe se está enquadrado. Com Sim, a regra vale só para as mulheres. **Vem marcado "Não"** (26/10, decisão do usuário): era obrigatório responder e travava o primeiro resultado do tráfego frio; quem se enquadra muda.
 - **O mínimo começa com a operação de hoje no 6x1.** Testamos três pontos de partida com 50 pessoas: "equipe inteira" exagera (faltam 25), "72% da equipe" esconde o problema (faltam 0), e "operação de hoje" responde a pergunta real (faltam 10).
@@ -404,4 +409,4 @@ Endereço: **https://escalacerta.carvalhoia.com** (domínio próprio só se vend
 2. Aviso de cookies do GA4 e do Pixel (orientação da ANPD), quando o volume crescer.
 3. Teste de compra real (Pix e cartão) e do e-mail de recuperação (o 403 do Resend foi corrigido em 28/10: agente `Python-urllib` barrado pelo Cloudflare).
 4. Pixel, GA4 e API de Conversões da Meta (seção 10.1). Conferir o `Purchase` do servidor no Gerenciador de Eventos na próxima venda.
-5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; folguista entre turnos; horário dos turnos; 12x36.
+5. Ideias anotadas: marcar **férias/afastamento** como algo diferente de folga; folguista entre turnos; horários no Excel e na semana; distribuir as pessoas nos horários da loja (plano mensal); 12x36.

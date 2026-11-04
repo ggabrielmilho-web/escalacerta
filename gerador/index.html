@@ -386,6 +386,29 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
 .img-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .img-botoes .botao { flex: 1 1 180px; }
 .dlg-img .aviso-copia { margin-top: 10px; }
+/* horários da equipe (opcional, só na área paga) e a folha do dia */
+.horarios .liga { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.horarios .liga input { margin-top: 2px; flex: none; }
+.horarios-corpo { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.horarios-corpo[hidden] { display: none; }
+/* grade de horários: no computador, nome e horários na mesma linha; no celular, o nome em cima e os 3 horários embaixo */
+.grade-hora { display: grid; grid-template-columns: minmax(90px, 170px) repeat(var(--cols, 3), 108px); gap: 6px 8px; align-items: center; font-size: 14px; width: 100%; }
+.grade-hora .cab { font-size: 12px; font-weight: 700; color: var(--tinta-2); }
+.grade-hora .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grade-hora .faixa { grid-column: 1 / -1; font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--tinta-2); padding-top: 6px; }
+input[type="time"] { padding: 6px; border: 1px solid var(--linha); border-radius: 8px; background: var(--papel); color: var(--tinta); font: inherit; width: 100%; min-width: 0; }
+.grade-hora .ajustado input { border-color: var(--acento); background: var(--acento-suave); }
+@media (max-width: 600px) {
+  .grade-hora { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 4px 8px; }
+  .grade-hora .nome { grid-column: 1 / -1; margin-top: 6px; }
+  .grade-hora .cab-nome { display: none; }
+}
+.dlg-folha { width: min(520px, calc(100vw - 24px)); padding: 20px 16px 16px; }
+.folha-nav { display: flex; align-items: center; gap: 8px; padding-right: 34px; }
+.dlg .folha-nav h2 { flex: 1; text-align: center; font-size: 18px; padding-right: 0; }
+.dlg-folha #folha-sub { margin: 6px 0 10px; }
+.folha-corpo { max-height: 52vh; overflow: auto; }
+.folha-folgas { font-size: 14px; margin: 10px 0 0; }
 .campos { display: flex; flex-direction: column; gap: 12px; }
 .campos label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); font-weight: 700; }
 .campos .botao.principal { margin-top: 4px; }
@@ -610,6 +633,16 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         </div>
         <p class="aviso-copia" id="aviso-copia" hidden></p>
       </div>
+      <!-- horários: opcional e só para quem pagou. A conta é em pessoas por dia; horário nunca entra nela -->
+      <div class="cartao horarios" id="cartao-horarios">
+        <label class="liga"><input type="checkbox" id="usar-horarios">
+          <span><b>Usar horários da equipe</b>: monta a folha do dia, com o horário de cada um e quem folga, para mandar no grupo.</span></label>
+        <div class="horarios-corpo" id="horarios-corpo" hidden>
+          <p class="nota">O horário de sempre de cada pessoa. Na folha do dia você muda só aquele dia (quem cobre a folga de outro, o domingo). Deixe em branco o que não usa.</p>
+          <div class="grade-hora" id="tab-horarios"></div>
+          <button type="button" class="botao principal" id="folha-dia">Ver a folha do dia</button>
+        </div>
+      </div>
       <div class="barra">
         <div class="mes-nav">
           <button type="button" class="botao pequeno" id="mes-ant" aria-label="Mês anterior">‹</button>
@@ -749,6 +782,19 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   <p class="aviso-copia" id="img-aviso" role="status" hidden></p>
 </dialog>
 
+<dialog class="dlg dlg-folha" id="dlg-folha" aria-labelledby="folha-titulo">
+  <form method="dialog" class="dlg-fechar"><button class="tirar" aria-label="Fechar">✕</button></form>
+  <div class="folha-nav">
+    <button type="button" class="botao pequeno" id="folha-ant" aria-label="Dia anterior">‹</button>
+    <h2 id="folha-titulo">Folha do dia</h2>
+    <button type="button" class="botao pequeno" id="folha-prox" aria-label="Próximo dia">›</button>
+  </div>
+  <p class="nota" id="folha-sub"></p>
+  <div class="folha-corpo" id="folha-corpo"></div>
+  <p class="folha-folgas" id="folha-folgas"></p>
+  <div class="img-botoes"><button type="button" class="botao principal" id="folha-imagem">Imagem para o WhatsApp</button></div>
+</dialog>
+
 <dialog class="dlg" id="dlg-conta" aria-labelledby="dlg-titulo">
   <form method="dialog" class="dlg-fechar"><button class="tirar" aria-label="Fechar">✕</button></form>
   <h2 id="dlg-titulo"></h2>
@@ -810,6 +856,9 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     imagemPrevia: ['previa_imagem', null],  // abriu a prévia da imagem do WhatsApp antes de pagar (só no GA4)
     imagemLiberar: ['liberar_pela_imagem', null], // tocou em Liberar dentro da prévia da imagem (só no GA4; o AddToCart sai do Liberar)
     oferta: ['abriu_oferta', null],         // veio pelo botão do e-mail de preço especial e o Pix abriu (só no GA4)
+    horarios: ['usou_horarios', null],      // marcou "Usar horários da equipe" (só no GA4)
+    folha: ['abriu_folha_dia', null],       // abriu a folha do dia (só no GA4)
+    folhaImagem: ['imagem_folha_dia', null], // gerou a imagem da folha do dia (só no GA4)
     compra: ['purchase', 'Purchase'],
     reembolso: ['refund', null],            // só no GA4: a Meta não tem evento de estorno
   };
@@ -1408,7 +1457,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     $('proximo').hidden = !ok || estado.liberado;
     $('pago').hidden = !ok || !estado.liberado;
     if (!ok) return;
-    if (estado.liberado) { renderCalendario(); renderFixa(); } else renderPrevia();
+    if (estado.liberado) { renderCalendario(); renderFixa(); renderHorarios(); } else renderPrevia();
   }
 
   // "Essa escala se repete a cada 3 semanas: a partir de 04/01 tudo volta igual."
@@ -1849,6 +1898,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
         turnos: comTurnos() ? estado.turnos.map((x, t) => ({ nome: x.nome, minimo: [0, 1, 2, 3, 4, 5, 6].map(i => $(`mt-${t}-${i}`).value) })) : null,
       },
       semente: estado.semente, res: estado.res, grade: estado.grade, equipe: estado.equipe, mes: estado.mes, visao: estado.visao,
+      horarios: estado.horarios,
     };
   }
   function restaurar(s) {
@@ -1872,6 +1922,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     // acompanhar o tamanho da equipe
     estado.minimoManual = f.minimoManual === true;
     estado.exemploTurnos = f.exemploTurnos === true && !!f.turnos;
+    estado.horarios = s.horarios || null;
     renderPessoas(); atualizaFechados();
     if (!s.res || !s.res.ok) return;
     estado.res = s.res; estado.grade = s.grade; estado.equipe = s.equipe; estado.visao = s.visao || 'pessoa';
@@ -2558,7 +2609,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     return txt.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
   // a imagem abre numa janela para a pessoa conferir; dali ela manda no WhatsApp, copia ou baixa
-  const imgAtual = { blob: null, arq: null, nome: '', url: '', mes: '' };
+  const imgAtual = { blob: null, arq: null, nome: '', url: '', titulo: '' };
   const celular = () => window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   function avisoImg(msg) {
     const el = $('img-aviso');
@@ -2594,7 +2645,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const linhas = gruposDaEscala(cfg).flatMap(gr => (cfg.turnos ? [{ turno: gr.nome }] : []).concat(gr.membros.map(e => ({ e }))));
       const cv = imagemEquipe(res, cfg, mes, fer, ferMes, linhas, '', res.ini + 6);
       const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
-      imgAtual.blob = null; imgAtual.arq = null; imgAtual.mes = '';      // a prévia não se manda nem se baixa
+      imgAtual.blob = null; imgAtual.arq = null; imgAtual.titulo = '';   // a prévia não se manda nem se baixa
       ['img-enviar', 'img-copiar', 'img-baixar'].forEach(id => { $(id).hidden = true; });
       $('img-liberar').hidden = false;
       $('img-sub').textContent = 'Assim a escala chega no WhatsApp da equipe. Toque na imagem para ampliar.';
@@ -2624,28 +2675,33 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
       const cv = todos || turno >= 0 ? imagemEquipe(res, cfg, mes, fer, ferMes, linhas, turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : '')
         : imagemPessoa(res, cfg, mes, fer, ferMes, +quem);
       const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
-      imgAtual.blob = blob;
       const quemNome = todos ? 'equipe' : turno >= 0 ? `turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem];
-      imgAtual.nome = `escala-${nomeArquivo(quemNome)}-${nomeArquivo(mes.rotulo)}.png`;
-      imgAtual.arq = new File([blob], imgAtual.nome, { type: 'image/png' });
-      imgAtual.mes = mes.rotulo;
-      $('img-sub').textContent = 'Confira antes de mandar para a equipe. Toque na imagem para ampliar.';
-      $('img-baixar').hidden = false; $('img-liberar').hidden = true;
-      // no celular, "Enviar" abre o Compartilhar (o WhatsApp aparece na lista); no computador, copiar e colar
-      // no WhatsApp Web é o caminho mais curto (a janela de compartilhar do Windows só atrapalha)
-      const podeEnviar = celular() && navigator.canShare && navigator.canShare({ files: [imgAtual.arq] });
-      const podeCopiar = !celular() && navigator.clipboard && window.ClipboardItem;
-      $('img-enviar').hidden = !podeEnviar;
-      $('img-copiar').hidden = !podeCopiar;
-      $('img-dica').textContent = podeEnviar ? ''
-        : podeCopiar ? 'Copie e cole com Ctrl+V na conversa do WhatsApp Web, ou baixe e anexe.'
-        // navegador do Instagram/Facebook: sem Compartilhar, e o download às vezes falha; a imagem na tela sempre serve
-        : 'Segure o dedo na imagem para salvar ou enviar. Se preferir, toque em Baixar imagem.';
-      mostrarImagem(blob, `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem]}`));
+      oferecerImagem(blob, `escala-${nomeArquivo(quemNome)}-${nomeArquivo(mes.rotulo)}.png`,
+        `Escala de ${mes.rotulo}` + (todos ? '' : ` · ${turno >= 0 ? `Turno ${cfg.turnos[turno].nome}` : cfg.nomes[+quem]}`));
     } finally {
       btn.disabled = false;
     }
   });
+  // a imagem pronta para mandar (a do mês e a da folha do dia)
+  function oferecerImagem(blob, nome, titulo) {
+    imgAtual.blob = blob;
+    imgAtual.nome = nome;
+    imgAtual.arq = new File([blob], nome, { type: 'image/png' });
+    imgAtual.titulo = titulo;
+    $('img-sub').textContent = 'Confira antes de mandar para a equipe. Toque na imagem para ampliar.';
+    $('img-baixar').hidden = false; $('img-liberar').hidden = true;
+    // no celular, "Enviar" abre o Compartilhar (o WhatsApp aparece na lista); no computador, copiar e colar
+    // no WhatsApp Web é o caminho mais curto (a janela de compartilhar do Windows só atrapalha)
+    const podeEnviar = celular() && navigator.canShare && navigator.canShare({ files: [imgAtual.arq] });
+    const podeCopiar = !celular() && navigator.clipboard && window.ClipboardItem;
+    $('img-enviar').hidden = !podeEnviar;
+    $('img-copiar').hidden = !podeCopiar;
+    $('img-dica').textContent = podeEnviar ? ''
+      : podeCopiar ? 'Copie e cole com Ctrl+V na conversa do WhatsApp Web, ou baixe e anexe.'
+      // navegador do Instagram/Facebook: sem Compartilhar, e o download às vezes falha; a imagem na tela sempre serve
+      : 'Segure o dedo na imagem para salvar ou enviar. Se preferir, toque em Baixar imagem.';
+    mostrarImagem(blob, titulo);
+  }
   $('img-previa').addEventListener('click', () => {
     const q = $('img-previa').closest('.img-quadro');
     q.classList.toggle('zoom');
@@ -2654,7 +2710,7 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
   });
   $('img-enviar').addEventListener('click', async () => {
     try {
-      await navigator.share({ files: [imgAtual.arq], title: `Escala de ${imgAtual.mes}` });
+      await navigator.share({ files: [imgAtual.arq], title: imgAtual.titulo });
     } catch (err) {
       if (err && err.name === 'AbortError') return;          // a pessoa desistiu no Compartilhar
       avisoImg('Não consegui abrir o Compartilhar. Segure o dedo na imagem para enviar ou toque em Baixar imagem.');
@@ -2674,6 +2730,202 @@ input[type="email"], input[type="tel"], input[type="password"] { padding: 9px 10
     a.href = imgAtual.url; a.download = imgAtual.nome;
     document.body.appendChild(a); a.click(); a.remove();
     avisoImg('Imagem baixada. É só anexar no WhatsApp.');
+  });
+
+  // ---------- horários da equipe e folha do dia (opcional, só para quem pagou) ----------
+  // Pedido de um líder de loja que monta à mão, toda semana, uma folha por dia: quem entra a que horas, o
+  // intervalo e quem folga. Metade da equipe tem horário fixo; a outra cobre a folga dos colegas. Por isso:
+  // o horário de sempre fica por nome (sobrevive a recalcular a escala) e o ajuste de um dia, por data.
+  // Nada disso entra no cálculo: a conta continua em pessoas por dia.
+  const CAMPOS_HORA = [['e', 'Entrada'], ['i', 'Intervalo'], ['s', 'Saída']];
+  let folhaDia = null;
+  function horarios() {
+    if (!estado.horarios) estado.horarios = { ligado: false, pessoa: {}, dia: {} };
+    return estado.horarios;
+  }
+  function horaDe(nome, iso, c) {
+    const h = horarios(), d = h.dia[iso] && h.dia[iso][nome];
+    if (d && c in d) return d[c];
+    return (h.pessoa[nome] || {})[c] || '';
+  }
+  const ajustadoEm = (nome, iso, c) => !!(horarios().dia[iso] && horarios().dia[iso][nome] && c in horarios().dia[iso][nome]);
+  const dataLonga = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
+  // a grade de horários (a do horário de sempre e a da folha do dia): cabeçalho, faixa do turno e uma linha por pessoa
+  function gradeHoras(cols, grupos, comFaixa, valor, ajustado, rotulo) {
+    return '<span class="cab cab-nome">Pessoa</span>' + cols.map(([, rot]) => `<span class="cab">${rot}</span>`).join('') +
+      grupos.map(gr => (comFaixa ? `<span class="faixa">${esc(gr.nome)}</span>` : '') + gr.nomes.map(nome =>
+        `<span class="nome" title="${esc(nome)}">${esc(nome)}</span>` + cols.map(([c, rot]) =>
+          `<span class="${ajustado(nome, c) ? 'ajustado' : ''}"><input type="time" data-nome="${esc(nome)}" data-c="${c}" ` +
+          `aria-label="${rot} de ${esc(nome)}${rotulo}" value="${esc(valor(nome, c))}"></span>`).join('')).join('')).join('');
+  }
+  function renderHorarios() {
+    const h = horarios(), cfg = estado.res.cfg;
+    $('usar-horarios').checked = !!h.ligado;
+    $('horarios-corpo').hidden = !h.ligado;
+    if (!h.ligado) return;
+    const grupos = gruposDaEscala(cfg).map(gr => ({ nome: gr.nome, nomes: gr.membros.map(e => cfg.nomes[e]) }));
+    $('tab-horarios').innerHTML = gradeHoras(CAMPOS_HORA, grupos, !!cfg.turnos, (nome, c) => (h.pessoa[nome] || {})[c] || '', () => false, '');
+  }
+  $('usar-horarios').addEventListener('change', ev => {
+    horarios().ligado = ev.target.checked;
+    if (ev.target.checked) rastreia('horarios');
+    renderHorarios();
+    agendarSalvar();
+  });
+  $('tab-horarios').addEventListener('change', ev => {
+    const inp = ev.target.closest('input[type="time"]');
+    if (!inp) return;
+    const h = horarios(), p = h.pessoa[inp.dataset.nome] = h.pessoa[inp.dataset.nome] || {};
+    if (inp.value) p[inp.dataset.c] = inp.value; else delete p[inp.dataset.c];
+    agendarSalvar();
+  });
+
+  // quem trabalha (em ordem de entrada, como a folha feita à mão) e quem folga no dia, por turno
+  function dadosFolha(dia) {
+    const res = estado.res, cfg = res.cfg, iso = M.isoDe(dia), k = dia - res.seg0;
+    const grupos = gruposDaEscala(cfg).map(gr => {
+      // sem entrada vai para o fim, na ordem da equipe (a ordenação é estável)
+      const trab = gr.membros.filter(e => estado.grade[e][k] === 'T').map(e => cfg.nomes[e])
+        .sort((a, b) => (horaDe(a, iso, 'e') || '99').localeCompare(horaDe(b, iso, 'e') || '99'));
+      return { nome: gr.nome, trab, folga: gr.membros.filter(e => estado.grade[e][k] === 'F').map(e => cfg.nomes[e]) };
+    });
+    const todos = grupos.flatMap(g => g.trab);
+    // só as colunas que alguém usa no dia; sem nenhuma, a entrada
+    const usadas = CAMPOS_HORA.filter(([c]) => todos.some(n => horaDe(n, iso, c)));
+    const fer = res.feriados.find(f => f.dia === dia);
+    return { iso, grupos, cols: usadas.length ? usadas : [CAMPOS_HORA[0]], fechado: !todos.length && !grupos.some(g => g.folga.length),
+      feriado: fer ? fer.nome : '', titulo: `${DIA_NOME[M.diaSemana(dia)]} · ${dataLonga(iso)}` };
+  }
+  function renderFolha() {
+    const res = estado.res, f = dadosFolha(folhaDia), n = Object.keys(horarios().dia[f.iso] || {}).length;
+    $('folha-titulo').textContent = f.titulo;
+    $('folha-ant').disabled = folhaDia <= res.ini;
+    $('folha-prox').disabled = folhaDia >= res.fim;
+    $('folha-sub').innerHTML = (f.feriado ? `<b>Feriado: ${esc(f.feriado)}.</b> ` : '') + (n
+      ? `${plural(n, 'pessoa', 'pessoas')} com horário mudado só neste dia. <button type="button" class="botao-link" id="folha-voltar">Voltar ao de sempre</button>`
+      : 'Toque num horário para mudar só neste dia.');
+    $('folha-imagem').disabled = f.fechado;
+    if (f.fechado) {
+      $('folha-corpo').innerHTML = '<p class="nota">Fechado neste dia.</p>';
+      $('folha-folgas').textContent = '';
+      return;
+    }
+    const grupos = f.grupos.map(g => ({ nome: g.nome, nomes: g.trab }));
+    $('folha-corpo').innerHTML = `<div class="grade-hora" style="--cols:${f.cols.length}">` +
+      gradeHoras(f.cols, grupos, !!res.cfg.turnos, (nome, c) => horaDe(nome, f.iso, c), (nome, c) => ajustadoEm(nome, f.iso, c), ' neste dia') + '</div>';
+    const folgas = f.grupos.flatMap(g => g.folga);
+    $('folha-folgas').innerHTML = folgas.length ? `<b>Folga:</b> ${esc(folgas.join(', '))}` : 'Ninguém de folga neste dia.';
+  }
+  $('folha-dia').addEventListener('click', () => {
+    const res = estado.res, hoje = hojeDia();
+    // hoje, se a escala já começou; senão, o começo do mês que está na tela
+    folhaDia = hoje >= res.ini && hoje <= res.fim ? hoje : Math.max(res.ini, estado.meses[estado.mes].a);
+    rastreia('folha');
+    renderFolha();
+    $('dlg-folha').showModal();
+  });
+  $('folha-ant').addEventListener('click', () => { folhaDia--; renderFolha(); });
+  $('folha-prox').addEventListener('click', () => { folhaDia++; renderFolha(); });
+  // mudou um horário na folha: vale só neste dia; igual ao de sempre, deixa de ser ajuste.
+  // Não redesenha a tabela (tiraria o foco no meio da digitação); a ordem por entrada se refaz ao trocar de dia
+  $('folha-corpo').addEventListener('change', ev => {
+    const inp = ev.target.closest('input[type="time"]');
+    if (!inp) return;
+    const h = horarios(), iso = M.isoDe(folhaDia), nome = inp.dataset.nome, c = inp.dataset.c;
+    const dia = h.dia[iso] = h.dia[iso] || {};
+    if (inp.value === ((h.pessoa[nome] || {})[c] || '')) { if (dia[nome]) delete dia[nome][c]; } else (dia[nome] = dia[nome] || {})[c] = inp.value;
+    if (dia[nome] && !Object.keys(dia[nome]).length) delete dia[nome];
+    if (!Object.keys(dia).length) delete h.dia[iso];
+    inp.parentElement.classList.toggle('ajustado', ajustadoEm(nome, iso, c));
+    const n = Object.keys(h.dia[iso] || {}).length;
+    $('folha-sub').innerHTML = n
+      ? `${plural(n, 'pessoa', 'pessoas')} com horário mudado só neste dia. <button type="button" class="botao-link" id="folha-voltar">Voltar ao de sempre</button>`
+      : 'Toque num horário para mudar só neste dia.';
+    agendarSalvar();
+  });
+  $('folha-sub').addEventListener('click', ev => {
+    if (!ev.target.closest('#folha-voltar')) return;
+    delete horarios().dia[M.isoDe(folhaDia)];
+    agendarSalvar();
+    renderFolha();
+  });
+
+  // a folha do dia como imagem: a lista que o líder monta à mão, em ordem de entrada, e quem folga embaixo
+  function quebrarLinhas(g, texto, max) {
+    const linhas = [];
+    let atual = '';
+    texto.split(' ').forEach(p => {
+      const teste = atual ? `${atual} ${p}` : p;
+      if (atual && g.measureText(teste).width > max) { linhas.push(atual); atual = p; } else atual = teste;
+    });
+    if (atual) linhas.push(atual);
+    return linhas;
+  }
+  function imagemFolha(dia) {
+    const f = dadosFolha(dia), turnos = !!estado.res.cfg.turnos;
+    const pad = 28, lh = 36, topo = 92, cab = 30, cwc = 100, rod = 56;
+    const medida = document.createElement('canvas').getContext('2d');
+    medida.font = `600 17px ${FT}`;
+    const nomes = f.grupos.flatMap(g => g.trab);
+    const nw = Math.min(260, Math.max(150, ...nomes.map(n => medida.measureText(n).width + 24)));
+    const W = Math.max(440, pad * 2 + nw + f.cols.length * cwc);
+    medida.font = `600 15px ${FT}`;
+    const folgas = f.grupos.flatMap(g => g.folga);
+    const linhasFolga = folgas.length ? quebrarLinhas(medida, 'Folga: ' + folgas.join(', '), W - 2 * pad) : [];
+    const N = nomes.length + (turnos ? f.grupos.length : 0);
+    const H = topo + cab + N * lh + 18 + linhasFolga.length * 22 + rod;
+    const { cv, g } = telaImagem(W, H);
+    g.textAlign = 'left'; g.fillStyle = COR_IMG.tinta; g.font = `800 26px ${FT}`;
+    g.fillText(f.titulo, pad, 44);
+    g.font = `600 13px ${FT}`; g.fillStyle = f.feriado ? COR_IMG.feriadoTinta : COR_IMG.tinta2;
+    g.fillText('Horários da equipe' + (f.feriado ? ` · Feriado: ${f.feriado}` : ''), pad, 68);
+    const x0 = pad + nw;
+    let y = topo;
+    g.font = `700 12px ${FT}`; g.fillStyle = COR_IMG.tinta2; g.textAlign = 'center';
+    f.cols.forEach(([, rot], i) => g.fillText(rot.toUpperCase(), x0 + i * cwc + cwc / 2, y + 18));
+    y += cab;
+    g.strokeStyle = COR_IMG.linhaForte; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(pad, y + 0.5); g.lineTo(W - pad, y + 0.5); g.stroke();
+    f.grupos.forEach(gr => {
+      if (turnos) {
+        g.fillStyle = COR_IMG.fechado; g.fillRect(pad, y + 1, W - 2 * pad, lh - 1);
+        g.textAlign = 'left'; g.font = `800 13px ${FT}`; g.fillStyle = COR_IMG.tinta;
+        g.fillText(cortar(g, gr.nome.toUpperCase(), W - 2 * pad - 16), pad + 8, y + lh / 2 + 5);
+        y += lh;
+      }
+      gr.trab.forEach(nome => {
+        g.textAlign = 'left'; g.font = `600 17px ${FT}`; g.fillStyle = COR_IMG.tinta;
+        g.fillText(cortar(g, nome, nw - 16), pad, y + lh / 2 + 6);
+        g.textAlign = 'center';
+        f.cols.forEach(([c], i) => {
+          const h = horaDe(nome, f.iso, c);
+          g.font = h ? `800 17px ${FT}` : `600 15px ${FT}`; g.fillStyle = h ? COR_IMG.tinta : COR_IMG.linhaForte;
+          g.fillText(h || '—', x0 + i * cwc + cwc / 2, y + lh / 2 + 6);
+        });
+        g.strokeStyle = COR_IMG.linha;
+        g.beginPath(); g.moveTo(pad, y + lh + 0.5); g.lineTo(W - pad, y + lh + 0.5); g.stroke();
+        y += lh;
+      });
+    });
+    y += 18;
+    g.textAlign = 'left'; g.font = `600 15px ${FT}`; g.fillStyle = COR_IMG.folgaTinta;
+    linhasFolga.forEach((l, i) => g.fillText(l, pad, y + 16 + i * 22));
+    rodapeImagem(g, W, H, pad, []);
+    return cv;
+  }
+  $('folha-imagem').addEventListener('click', async () => {
+    const btn = $('folha-imagem');
+    btn.disabled = true;
+    try {
+      rastreia('folhaImagem');
+      await fontesImagem();
+      const cv = imagemFolha(folhaDia), iso = M.isoDe(folhaDia);
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      oferecerImagem(blob, `folha-do-dia-${iso}.png`, `Folha de ${DIA_NOME[M.diaSemana(folhaDia)].toLowerCase()}, ${M.ddmm(folhaDia)}`);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   $('copiar').addEventListener('click', () => {
