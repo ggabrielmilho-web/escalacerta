@@ -2261,7 +2261,9 @@ input[type="time"] { padding: 6px; border: 1px solid var(--linha); border-radius
     if (nome === 'codigo') sub = `Mandamos para ${emailDigitado}. Ele vale por 15 minutos; confira também o spam.`;
     if (nome === 'pix') sub = emOferta()
       ? `Preço especial: R$ ${reais(precoVenda())} em vez de R$ ${reais(PRECO_SITE)}. Sua escala está guardada e abre completa assim que o Pix cair.`
-      : `R$ ${reais(precoVenda())} · pagamento único · garantia de 7 dias`;
+      : `R$ ${reais(precoVenda())} · pagamento único · garantia de 7 dias` +
+        // comprar() guarda a escala antes de abrir esta janela; sem escala montada, a frase não seria verdade
+        (estado.res && estado.res.ok ? '. Sua escala está guardada e abre completa assim que o Pix cair.' : '');
     $('dlg-sub').textContent = aviso || sub;
     $('dlg-corpo').innerHTML = typeof v.html === 'function' ? v.html() : v.html;
     $('dlg-erro').hidden = true;

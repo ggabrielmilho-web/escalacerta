@@ -244,7 +244,7 @@ No Calendário, "Trabalha"/"T" sai em cinza claro para a folga saltar aos olhos,
 
 ## 9. Pagamento (Mercado Pago)
 
-- **Pix na nossa página (desde 03/11), API de Payments (`mp.criar_pix`):** depois do e-mail, a janela mostra "Copiar código Pix", o código e o QR Code (aberto no computador, recolhido no celular). A pessoa paga no app do banco e **não sai do site**; a página confere o pedido a cada 3 s (mesmo com a janela fechada, por até 30 min) e libera sozinha.
+- **Pix na nossa página (desde 03/11), API de Payments (`mp.criar_pix`):** depois do e-mail, a janela mostra "Copiar código Pix", o código e o QR Code (aberto no computador, recolhido no celular). A pessoa paga no app do banco e **não sai do site**; a página confere o pedido a cada 3 s (mesmo com a janela fechada, por até 30 min) e libera sozinha. Com escala montada, o texto da janela também avisa que ela está guardada e abre completa quando o Pix cair (`comprar()` salva antes de abrir).
   - **Por quê:** no Checkout Pro a pessoa escolhe entre pagar **com a conta do Mercado Pago** ou sem conta. Quem toca na conta cai num login e desiste, e para nós aparece só "abriu e não pagou" (dois clientes entre 01 e 03/11 pararam em `aguardando`). No celular, a volta do Mercado Pago ainda caía em outro navegador.
   - **Um Pix por vez:** tocar de novo (ou "Ver o código Pix" no aviso) mostra **o mesmo código** (`pedidos.pix`, `pix_em_aberto`). Faltando menos de 30 min para vencer, gera outro. A chave de idempotência é `escala-pix-<pedido>`. O Pix vence em 23 h.
   - O pedido Pix nasce `pendente` (Pix gerado). `pedidos.forma` = `pix` ou `cartao` (NULL = antes de 03/11).
